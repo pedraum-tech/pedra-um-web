@@ -1,15 +1,23 @@
 @import "tailwindcss";
 
+@theme {
+  /* --- CORES DA PEDRA UM --- */
+  /* Isso cria automaticamente as classes bg-pedraum-orange, text-pedraum-orange, etc */
+  --color-pedraum-orange: #ff9900;
+  --color-pedraum-dark: #0f172a;
+  --color-pedraum-gray: #f1f5f9;
+
+  /* --- CORES DE STATUS (DASHBOARD) --- */
+  --color-status-success: #10b981;
+  --color-status-warning: #f59e0b;
+  --color-status-error: #ef4444;
+  --color-status-info: #3b82f6;
+}
+
+/* Configurações padrão do Next.js */
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
