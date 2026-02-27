@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 
@@ -19,7 +21,7 @@ export function Header({ variant = "guest" }: Readonly<HeaderProps>) {
                         <Link href="/" className="text-gray-600 hover:text-pedraum-orange font-medium">
                             Início
                         </Link>
-                        <Link href="/comprador/" className="text-gray-600 hover:text-pedraum-orange font-medium">
+                        <Link href="/comprador" className="text-gray-600 hover:text-pedraum-orange font-medium">
                             Demanda
                         </Link>
                         <Link href="/comprador/perfil" className="text-gray-600 hover:text-pedraum-orange font-medium">
