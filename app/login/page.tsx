@@ -88,8 +88,6 @@ export default function LoginPage() {
                     </div>
                 </div>
             </div>
-
-            {/* O Footer já vem automático do layout.tsx, não precisa por aqui */}
         </div>
     );
 }
