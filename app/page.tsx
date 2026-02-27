@@ -1,9 +1,31 @@
+"use client";
 
+import { AuthModal } from "@/src/components/AuthModal";
 import { Header } from "@/src/components/Header";
 import { ArrowRight, Search, Settings, Truck, BarChart3, Target, ShieldCheck, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+
 
 export default function Home() {
+    // Estado que controla o popup (começa fechado)
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Estado para armazenar o texto da demanda (opcional, para mostrar no modal ou enviar para backend)
+    const [textoDemanda, setTextoDemanda] = useState("");
+
+    // Função que valida e abre o modal
+    const handleEnviarDemanda = () => {
+        // O .trim() remove espaços em branco inúteis. 
+        // Se sobrar nada, significa que ele não digitou uma demanda real.
+        if (textoDemanda.trim() === "" || textoDemanda.trim().length < 10) {
+            alert("Por favor, descreva o que você precisa antes de enviar!");
+            return; // Para a execução aqui e não abre o modal
+        }
+
+        // Se passou na validação acima, abre o popup!
+        setIsModalOpen(true);
+    };
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             <Header />
@@ -11,7 +33,7 @@ export default function Home() {
             {/* --- SEÇÃO 1: HERO (Foco no Comprador) --- */}
             <section className="w-full py-20 px-4 flex flex-col items-center justify-center text-center bg-white relative overflow-hidden">
                 {/* Fundo decorativo sutil */}
-                <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-50 via-white to-white opacity-50 z-0"></div>
+                <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-orange-50 via-white to-white opacity-50 z-0"></div>
 
                 <div className="z-10 max-w-4xl w-full">
                     <h1 className="text-4xl md:text-5xl font-extrabold text-pedraum-dark mb-4 leading-tight">
@@ -26,20 +48,31 @@ export default function Home() {
                     {/* O Card Flutuante de Input */}
                     <div className="bg-white p-2 rounded-2xl shadow-2xl shadow-orange-100/50 border border-gray-100 max-w-3xl mx-auto transform hover:scale-[1.01] transition-transform duration-300">
                         <textarea
+                            // LIGANDO O TEXTAREA AO ESTADO:
+                            value={textoDemanda}
+                            onChange={(e) => setTextoDemanda(e.target.value)}
                             className="w-full h-32 p-4 text-lg text-gray-700 placeholder:text-gray-400 border-none outline-none resize-none rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-100 transition-all"
                             placeholder="Ex.: Preciso de telas de poliuretano 1.2mm para Metso HP300 ou mecânico especialista em Caterpillar 938..."
                         ></textarea>
 
                         <div className="flex justify-end px-2 pb-2">
-                            <Link href="/cadastro/comprador">
-                                <button className="bg-pedraum-orange hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all hover:translate-y-[-2px]">
-                                    Enviar Demanda <ArrowRight className="w-5 h-5" />
-                                </button>
-                            </Link>
+                            <button
+                                className='bg-pedraum-orange hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all hover:-translate-y-0.5'
+                                // MUDANDO O ONCLICK PARA A NOSSA NOVA FUNÇÃO DE VALIDAÇÃO:
+                                onClick={handleEnviarDemanda}
+                            >
+                                Enviar Demanda <ArrowRight className="w-5 h-5" />
+                            </button>
                         </div>
                     </div>
                 </div>
             </section>
+            {/* O Popup escondido no código */}
+            <AuthModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                textoDemanda={textoDemanda}
+            />
 
             {/* --- SEÇÃO 2: O "MEIO" (Foco no Fornecedor) --- */}
             <section style={{ display: "none" }} className="py-16 px-4 bg-white border-y border-gray-100">
