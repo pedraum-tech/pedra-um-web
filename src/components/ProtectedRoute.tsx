@@ -1,22 +1,43 @@
 "use client";
 
-
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "@/src/contexts/AuthContext";
 
-export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+// Agora ele pode receber um array de cargos permitidos!
+interface ProtectedRouteProps {
+    children: React.ReactNode;
+    allowedRoles?: string[]; // Ex: ["admin", "comprador"]
+}
+
+export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     const { user, loading } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
-        // Se já terminou de carregar e não há utilizador, recambiamos para o login!
-        if (!loading && !user) {
-            router.push("/login");
-        }
-    }, [user, loading, router]);
+        if (!loading) {
+            // 1. Se não tiver logado, chuta pro login
+            if (!user) {
+                router.push("/login");
+                return;
+            }
 
-    // Enquanto o Firebase pensa, mostramos um ecrã de carregamento elegante
+            // 2. Se a rota exigir um cargo específico, e o usuário não tiver esse cargo...
+            if (allowedRoles && user.tipo_usuario && !allowedRoles.includes(user.tipo_usuario)) {
+
+                // Redireciona a pessoa de volta para a casa correta dela
+                if (user.tipo_usuario === "comprador") {
+                    router.push("/comprador");
+                } else if (user.tipo_usuario === "fornecedor") {
+                    router.push("/fornecedor");
+                } else {
+                    router.push("/");
+                }
+            }
+        }
+    }, [user, loading, router, allowedRoles]);
+
+    // Tela de carregamento enquanto o Firebase decide o que fazer
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -25,6 +46,6 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         );
     }
 
-    // Se tiver utilizador, renderizamos a página protegida
+    // Se passou por todas as barreiras, renderiza a página!
     return user ? <>{children}</> : null;
 };

@@ -8,7 +8,7 @@ export default function AdminLayout({
     children: React.ReactNode;
 }) {
     return (
-        <ProtectedRoute>
+        <ProtectedRoute allowedRoles={["admin"]}> {/* Somente admins podem acessar */}
             <div className="flex min-h-screen bg-gray-50">
                 {/* A Sidebar fica fixa na esquerda */}
                 <AdminSidebar />
