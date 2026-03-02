@@ -3,9 +3,12 @@
 import { Header } from "@/src/components/Header";
 import { OportunidadeCard } from "@/src/components/OportunidadeCard";
 import { ProtectedRoute } from "@/src/components/ProtectedRoute";
+import { useAuth } from "@/src/contexts/AuthContext";
 
 
 export default function OportunidadesPage() {
+    // 1. Puxamos o usuário logado para descobrir o nome dele
+    const { user } = useAuth();
 
     // Mocks de dados só para a apresentação não ficar vazia
     const demandasMock = [
@@ -23,6 +26,16 @@ export default function OportunidadesPage() {
 
                 {/* Conteúdo Central */}
                 <main className="flex-1 w-full max-w-6xl mx-auto p-4 py-8">
+
+                    {/* --- MENSAGEM DE ACOLHIDA DINÂMICA --- */}
+                    <div className="mb-2">
+                        <h1 className="text-3xl font-bold text-pedraum-dark">
+                            Olá, {user?.razaoSocial || "visitante"}! 👋
+                        </h1>
+                        <p className="text-gray-500 mt-1">
+                            Acompanhe novas oportunidades de negócio e gerencie suas propostas.
+                        </p>
+                    </div>
 
                     {/* Título Centralizado */}
                     <h1 className="text-3xl font-bold text-center text-gray-900 mb-6">
