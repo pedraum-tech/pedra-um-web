@@ -1,11 +1,16 @@
-"use client"; // Obrigatório porque vamos usar o useState
+"use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/src/components/Header";
 import { Step1 } from "./components/step1";
 import { Step2 } from "./components/step2";
 
-// 1. Definimos o "Molde" de todos os dados que o fornecedor vai preencher
+// Importações do Firebase Auth e Firestore
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "@/src/lib/firebase";
+
 export interface FornecedorFormData {
     razaoSocial: string;
     cnpj: string;
@@ -19,10 +24,13 @@ export interface FornecedorFormData {
 }
 
 export default function CadastroFornecedorPage() {
-    // Controle de qual tela estamos (1 ou 2)
+    const router = useRouter();
     const [currentStep, setCurrentStep] = useState(1);
 
-    // O Estado global que guarda os dados das duas telas
+    // Estados de controle de interface
+    const [erro, setErro] = useState("");
+    const [carregando, setCarregando] = useState(false);
+
     const [formData, setFormData] = useState<FornecedorFormData>({
         razaoSocial: "",
         cnpj: "",
@@ -35,20 +43,68 @@ export default function CadastroFornecedorPage() {
         aceitaTermos: false,
     });
 
-    // Função para os componentes filhos injetarem dados aqui no Pai
     const updateFormData = (newData: Partial<FornecedorFormData>) => {
         setFormData((prev) => ({ ...prev, ...newData }));
     };
 
-    // Funções de navegação do Wizard
     const nextStep = () => setCurrentStep(2);
     const prevStep = () => setCurrentStep(1);
 
-    // Função final de envio
-    const handleSubmit = () => {
-        console.log("Dados prontos para o banco:", formData);
-        alert("Cadastro finalizado com sucesso!");
-        // Aqui no futuro você faz o redirect para o dashboard do fornecedor
+    // Função final de envio conectada ao Firebase
+    const handleSubmit = async () => {
+        setErro("");
+
+        // Uma última validação de segurança antes de ir para o banco
+        if (!formData.aceitaTermos) {
+            setErro("Você precisa aceitar os termos na etapa 1.");
+            setCurrentStep(1); // Volta para a tela 1 se ele tentou burlar
+            return;
+        }
+
+        setCarregando(true);
+
+        try {
+            // A) Cria o usuário no Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.senha);
+            const user = userCredential.user;
+
+            // B) Salva o nome (Razão Social) no perfil do Auth
+            await updateProfile(user, {
+                displayName: formData.razaoSocial
+            });
+
+            // C) Cria o documento completo no Firestore
+            const userDocRef = doc(db, "usuarios", user.uid);
+            await setDoc(userDocRef, {
+                razaoSocial: formData.razaoSocial,
+                cnpj: formData.cnpj,
+                email: formData.email,
+                especialidades: formData.especialidades,
+                regiao: formData.regiao,
+                categorias: formData.categorias,
+                descricaoItem: formData.descricaoItem,
+                tipo_usuario: "fornecedor", // Crucial para o controle de acesso!
+                status_verificacao: "pendente", // Fornecedores geralmente passam por aprovação de CNPJ
+                data_cadastro: new Date().toISOString(),
+                status: "ativo"
+            });
+
+            // D) Redireciona para o painel do fornecedor
+            // Ajuste esta rota para onde o fornecedor deve cair após o login!
+            router.push("/fornecedor");
+
+        } catch (error: any) {
+            console.error("Erro no cadastro de fornecedor:", error);
+            if (error.code === "auth/email-already-in-use") {
+                setErro("Este e-mail já está cadastrado. Tente fazer login.");
+            } else if (error.code === "auth/weak-password") {
+                setErro("A senha deve ter pelo menos 6 caracteres.");
+            } else {
+                setErro("Ocorreu um erro ao criar a conta. Tente novamente.");
+            }
+        } finally {
+            setCarregando(false);
+        }
     };
 
     return (
@@ -56,10 +112,15 @@ export default function CadastroFornecedorPage() {
             <Header variant="guest" />
 
             <div className="flex-1 flex items-center justify-center p-4 py-12">
-                {/* O Card Branco Principal (O Pai segura o layout principal) */}
                 <div className="bg-white w-full max-w-2xl rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-8 md:p-10 relative">
 
-                    {/* Lógica de Renderização Condicional */}
+                    {/* Exibe o erro geral do Firebase no topo do card, independente do Step */}
+                    {erro && (
+                        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm font-medium rounded-r-lg">
+                            {erro}
+                        </div>
+                    )}
+
                     {currentStep === 1 && (
                         <Step1
                             formData={formData}
@@ -74,6 +135,8 @@ export default function CadastroFornecedorPage() {
                             updateFormData={updateFormData}
                             onBack={prevStep}
                             onSubmit={handleSubmit}
+                        // Dica: Seria legal o seu Step2 receber esse 'carregando' via props 
+                        // para desativar o botão e mostrar "Enviando..."
                         />
                     )}
 
