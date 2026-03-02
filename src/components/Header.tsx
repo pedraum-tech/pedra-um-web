@@ -32,10 +32,10 @@ export function Header({ variant = "guest" }: Readonly<HeaderProps>) {
             case "supplier":
                 return (
                     <>
-                        <Link href="/dashboard" className="text-gray-600 hover:text-pedraum-orange font-medium">
+                        <Link href="/" className="text-gray-600 hover:text-pedraum-orange font-medium">
                             Início
                         </Link>
-                        <Link href="/fornecedor/" className="text-gray-600 hover:text-pedraum-orange font-medium">
+                        <Link href="/fornecedor" className="text-gray-600 hover:text-pedraum-orange font-medium">
                             Oportunidades
                         </Link>
                         <Link href="/fornecedor/perfil" className="text-gray-600 hover:text-pedraum-orange font-medium">
