@@ -1,12 +1,17 @@
-"use client"; // Necessário porque pode ter interações (como logout)
+"use client";
 
 import Link from "next/link";
 import Image from "next/image";
-import { LogOut } from "lucide-react"; // Certifique-se de ter instalado: npm install lucide-react
-import { usePathname } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation"; // Adicionamos o useRouter
+
+// 1. Importações do Firebase
+import { signOut } from "firebase/auth";
+import { auth } from "@/src/lib/firebase";
 
 export function AdminSidebar() {
-    const pathname = usePathname(); // Para saber em qual página estamos e destacar o link ativo
+    const pathname = usePathname();
+    const router = useRouter(); // 2. Inicializando o router
 
     const menuItems = [
         { label: "Dashboard", href: "/admin/dashboard" },
@@ -16,16 +21,26 @@ export function AdminSidebar() {
         { label: "Patrocinadores", href: "/admin/patrocinadores" },
     ];
 
+    // 3. A função assíncrona que encerra a sessão
+    const handleLogout = async () => {
+        try {
+            await signOut(auth); // Firebase encerra a sessão
+            router.push("/login"); // Redirecionamos para a tela de login
+        } catch (error) {
+            console.error("Erro ao sair do sistema:", error);
+        }
+    };
+
     return (
         <aside className="w-64 min-h-screen bg-[#0F172A] text-white flex flex-col py-8 px-6 fixed left-0 top-0 border-r border-gray-800">
 
-            {/* 1. Logo (Com filtro para ficar branco) */}
+            {/* 1. Logo */}
             <div className="relative w-40 h-12 mb-12">
                 <Image
-                    src="/logos/logo-pedraum-normal.png" // O mesmo logo preto que você já tem
+                    src="/logos/logo-pedraum-normal.png"
                     alt="PedraUm Admin"
                     fill
-                    className="object-contain brightness-0 invert" // O segredo: inverte a cor para branco
+                    className="object-contain brightness-0 invert"
                     priority
                 />
             </div>
@@ -40,12 +55,12 @@ export function AdminSidebar() {
                             key={item.href}
                             href={item.href}
                             className={`
-                text-lg font-medium px-4 py-3 rounded-lg transition-all
-                ${isActive
-                                    ? "bg-pedraum-orange text-white" // Estilo quando está Ativo
-                                    : "text-gray-300 hover:bg-white/10 hover:text-white" // Estilo Inativo
+                                text-lg font-medium px-4 py-3 rounded-lg transition-all
+                                ${isActive
+                                    ? "bg-pedraum-orange text-white"
+                                    : "text-gray-300 hover:bg-white/10 hover:text-white"
                                 }
-              `}
+                            `}
                         >
                             {item.label}
                         </Link>
@@ -53,16 +68,16 @@ export function AdminSidebar() {
                 })}
             </nav>
 
-            {/* 3. Botão Sair (Rodapé) */}
-            <Link href="/" className="mt-auto">
+            {/* 3. Botão Sair (Agora sem o <Link> e ativando a função handleLogout) */}
+            <div className="mt-auto">
                 <button
-                    className="mt-auto flex items-center gap-3 text-lg font-medium text-gray-300 hover:text-white px-4 py-3 transition-colors"
-                    onClick={() => console.log("Sair do sistema...")}
+                    className="flex items-center gap-3 text-lg font-medium text-gray-300 hover:text-white px-4 py-3 transition-colors w-full text-left"
+                    onClick={handleLogout}
                 >
-                    Sair
                     <LogOut className="w-5 h-5" />
+                    Sair
                 </button>
-            </Link>
+            </div>
 
         </aside>
     );
