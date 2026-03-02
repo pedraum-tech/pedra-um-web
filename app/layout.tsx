@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Footer } from "@/src/components/Footer";
-
+import { AuthProvider } from "@/src/contexts/AuthContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,11 +19,15 @@ export default function RootLayout({
   return (
     <html lang="pt-br">
       <body className={inter.className}>
-        {/* O Header você coloca página por página ou aqui se quiser fixo */}
 
-        {children} {/* Aqui entra o conteúdo da Home, Login, etc */}
+        {/* 2. O Provider abraça TUDO o que vai aparecer na tela */}
+        <AuthProvider>
 
-        <Footer /> {/* <--- Adicione aqui. Ele vai aparecer no fundo de TODAS as telas */}
+          {children} {/* Aqui entra o conteúdo da Home, Login, etc */}
+          <Footer /> {/* O Footer protegido junto com a aplicação */}
+
+        </AuthProvider>
+
       </body>
     </html>
   );
