@@ -191,7 +191,7 @@ export default function Home() {
                     </div>
 
                     <div className="mt-16">
-                        <Link href="/cadastro/fornecedor">
+                        <Link href="/cadastro/comprador">
                             <button className="bg-pedraum-orange hover:bg-orange-600 text-white font-bold py-4 px-10 rounded-full text-lg shadow-lg shadow-orange-500/30 transition-all hover:scale-105">
                                 QUERO ME CADASTRAR
                             </button>
