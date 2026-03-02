@@ -14,7 +14,7 @@ const firebaseConfig = {
 
 // O Next.js roda no servidor e no cliente. 
 // Isso garante que o Firebase não tente inicializar duas vezes e cause erros.
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 // Exportando os serviços que vamos usar
 export const auth = getAuth(app);
