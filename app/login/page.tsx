@@ -30,8 +30,8 @@ export default function LoginPage() {
             // A mágica acontece aqui: tenta logar com os dados
             await signInWithEmailAndPassword(auth, email, password);
 
-            // Se deu certo, manda para o painel (ajuste a rota para onde preferir)
-            router.push("/admin/dashboard");
+            // Se deu certo, manda para o painel
+            router.push("/comprador/");
         } catch (error: unknown) {
             // Se deu erro (senha errada, usuário não existe), avisa o usuário
             console.error("Erro na autenticação:", error);
