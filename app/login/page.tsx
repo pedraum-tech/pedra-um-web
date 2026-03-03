@@ -9,6 +9,7 @@ import Link from "next/link";
 // 2. Importações do Firebase
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/src/lib/firebase";
+import { TipoCadastroModal } from "@/src/components/TipoCadastroModal";
 // Lembre-se de verificar se o caminho da pasta lib está correto!
 
 export default function LoginPage() {
@@ -17,6 +18,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [erro, setErro] = useState("");
     const [carregando, setCarregando] = useState(false);
+    const [isModalCadastroOpen, setIsModalCadastroOpen] = useState(false);
 
     const router = useRouter();
 
@@ -115,22 +117,29 @@ export default function LoginPage() {
                                     <button
                                         type="submit"
                                         disabled={carregando}
-                                        className="flex-1 bg-pedraum-orange hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-lg shadow-orange-500/20 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center"
+                                        className="w-full flex-1 bg-pedraum-orange hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-lg shadow-orange-500/20 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center"
                                     >
                                         {carregando ? "Entrando..." : "Entrar"}
                                     </button>
 
-                                    <Link href="/cadastro/comprador" className="flex-1">
-                                        <button type="button" className="w-full bg-white border-2 border-orange-200 text-pedraum-orange hover:bg-orange-50 font-bold py-3 px-6 rounded-lg transition-colors">
-                                            Cadastre-se
-                                        </button>
-                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsModalCadastroOpen(true)}
+                                        className="w-full flex-1 bg-white border-2 border-orange-200 text-pedraum-orange hover:bg-orange-50 font-bold py-3 px-6 rounded-lg transition-colors flex justify-center items-center"
+                                    >
+                                        Cadastre-se
+                                    </button>
                                 </div>
                             </form>
                         </div>
                     </div>
                 </div>
             </div>
+            {/* Modal de Escolha de Cadastro */}
+            <TipoCadastroModal
+                isOpen={isModalCadastroOpen}
+                onClose={() => setIsModalCadastroOpen(false)}
+            />
         </div>
     );
 }
