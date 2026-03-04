@@ -39,6 +39,7 @@ export default function PerfilCompradorPage() {
                         setNome(dados.nome || "");
                         setTelefone(dados.telefone || "");
                         setEmail(dados.email || "");
+                        setFotoPerfil(dados.fotoPerfil || null);
                     }
                 } catch (error) {
                     console.error("Erro ao buscar perfil:", error);
