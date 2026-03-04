@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // Puxando as chaves do seu arquivo .env.local
 const firebaseConfig = {
@@ -17,5 +18,11 @@ const firebaseConfig = {
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 // Exportando os serviços que vamos usar
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Inicialize o Storage aqui
+const storage = getStorage(app);
+
+// 3. Não esqueça de exportar o storage junto com os outros!
+export { app, auth, db, storage };
