@@ -2,19 +2,44 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/src/contexts/AuthContext";
+import { signOut } from "firebase/auth";
+import { auth } from "@/src/lib/firebase";
 
-// Definimos os 3 tipos possíveis de cabeçalho
 type HeaderVariant = "guest" | "buyer" | "supplier";
 
 interface HeaderProps {
-    variant?: HeaderVariant; // O '?' diz que é opcional (padrão 'guest')
+    variant?: HeaderVariant;
 }
 
 export function Header({ variant = "guest" }: Readonly<HeaderProps>) {
+    const { user, loading } = useAuth();
+    const router = useRouter();
 
-    // Função auxiliar para renderizar os links certos
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            router.push("/login");
+        } catch (error) {
+            console.error("Erro ao fazer logout:", error);
+        }
+    };
+
+    // A MÁGICA ACONTECE AQUI:
+    // O Header agora decide o que mostrar baseado PRIMEIRO no tipo de usuário logado.
+    const getEffectiveMode = () => {
+        if (user?.tipo_usuario === "comprador") return "buyer";
+        if (user?.tipo_usuario === "fornecedor") return "supplier";
+
+        // Só usa a prop 'variant' original se for um visitante real (deslogado)
+        return variant;
+    };
+
+    const currentMode = getEffectiveMode();
+
     const renderNavLinks = () => {
-        switch (variant) {
+        switch (currentMode) {
             case "buyer":
                 return (
                     <>
@@ -43,7 +68,7 @@ export function Header({ variant = "guest" }: Readonly<HeaderProps>) {
                         </Link>
                     </>
                 );
-            default: // 'guest' (Home)
+            default: // Visitante / Deslogado
                 return (
                     <div className="flex items-center gap-8">
                         <Link href="/" className="text-gray-600 hover:text-pedraum-orange font-medium">
@@ -57,27 +82,25 @@ export function Header({ variant = "guest" }: Readonly<HeaderProps>) {
         }
     };
 
-    // Função auxiliar para o botão de ação final (Entrar ou Sair)
     const renderActionButton = () => {
-        if (variant === "guest") {
+        if (user) {
             return (
-                <Link
-                    href="/login"
+                <button
+                    onClick={handleLogout}
                     className="bg-pedraum-orange hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-md transition-colors"
                 >
-                    Entrar
-                </Link>
+                    Sair
+                </button>
             );
         }
 
-        // Se for buyer ou supplier, mostra botão Sair
         return (
-            <button
+            <Link
+                href="/login"
                 className="bg-pedraum-orange hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-md transition-colors"
-                onClick={() => console.log("Fazendo logout...")}
             >
-                Sair
-            </button>
+                Entrar
+            </Link>
         );
     };
 
@@ -85,9 +108,7 @@ export function Header({ variant = "guest" }: Readonly<HeaderProps>) {
         <header className="w-full h-20 bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
 
-                {/* Lado Esquerdo: Logo */}
                 <Link href="/">
-                    {/* Lembre-se de colocar o logo preto na pasta public/logo-pedraum.png */}
                     <div className="relative w-40 h-10">
                         <Image
                             src="/logos/logo-pedraum-normal.png"
@@ -99,11 +120,13 @@ export function Header({ variant = "guest" }: Readonly<HeaderProps>) {
                     </div>
                 </Link>
 
-                {/* Lado Direito: Links e Botão */}
-                <nav className="flex items-center gap-8">
-                    {renderNavLinks()}
-                    {renderActionButton()}
-                </nav>
+                {/* Esconde os links enquanto carrega para evitar "piscar" a tela de visitante */}
+                {!loading && (
+                    <nav className="flex items-center gap-8 animate-in fade-in duration-300">
+                        {renderNavLinks()}
+                        {renderActionButton()}
+                    </nav>
+                )}
 
             </div>
         </header>
