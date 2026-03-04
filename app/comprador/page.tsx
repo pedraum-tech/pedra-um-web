@@ -285,7 +285,7 @@ export default function DemandasCompradorPage() {
                                                 </td>
                                                 <td className="py-4 px-4 text-right align-middle">
                                                     {/* O Link para a página de detalhes daquela demanda específica */}
-                                                    <Link href={`/comprador/demanda/${demanda.id}`} className="inline-block">
+                                                    <Link href={`/comprador/detalhes/${demanda.id}`} className="inline-block">
                                                         <button className="border border-pedraum-orange text-pedraum-orange hover:bg-orange-50 font-bold text-xs py-2 px-4 rounded-md transition-colors whitespace-nowrap">
                                                             Ver Detalhes
                                                         </button>
