@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Header } from "@/src/components/Header";
 import { ProtectedRoute } from "@/src/components/ProtectedRoute";
 import { useAuth } from "@/src/contexts/AuthContext";
 
-// Ferramentas do Firebase para adicionar dados
-import { collection, addDoc } from "firebase/firestore";
+// Ferramentas do Firebase
+import { collection, addDoc, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/src/lib/firebase";
 
 export default function DemandasCompradorPage() {
@@ -15,13 +15,45 @@ export default function DemandasCompradorPage() {
 
     // 1. Estados do Formulário de Demanda
     const [descricao, setDescricao] = useState("");
-    const [urgencia, setUrgencia] = useState("normal"); // 'normal', 'urgente', 'critico'
+    const [urgencia, setUrgencia] = useState("normal");
 
-    // 2. Estados de Controle (Loading e Feedback)
+    // 2. Estados de Controle
     const [carregando, setCarregando] = useState(false);
     const [mensagem, setMensagem] = useState({ texto: "", tipo: "" });
 
-    // 3. Função que dispara quando clica em "Cadastrar Demanda"
+    // NOVO: 3. Estado para guardar a lista de demandas do banco
+    const [minhasDemandas, setMinhasDemandas] = useState<any[]>([]);
+    const [carregandoDemandas, setCarregandoDemandas] = useState(true);
+
+    // NOVO: 4. Efeito para buscar as demandas em TEMPO REAL
+    useEffect(() => {
+        if (!user?.uid) return;
+
+        // Cria a consulta: "Busque na coleção 'demandas' apenas as que o compradorId for igual ao meu UID"
+        const q = query(
+            collection(db, "demandas"),
+            where("compradorId", "==", user.uid)
+        );
+
+        // onSnapshot fica "escutando" o banco. Qualquer alteração, ele roda essa função de novo.
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const listaDemandas = querySnapshot.docs.map(doc => ({
+                id: doc.id, // O ID único do documento gerado pelo Firebase
+                ...doc.data()
+            }));
+
+            // Ordenando no JavaScript (Mais novo primeiro) para evitar problemas de Index no Firebase
+            listaDemandas.sort((a, b) => new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime());
+
+            setMinhasDemandas(listaDemandas);
+            setCarregandoDemandas(false);
+        });
+
+        // Limpa o "ouvinte" quando a pessoa sai da página (boa prática de React)
+        return () => unsubscribe();
+    }, [user?.uid]);
+
+    // 5. Função de Criar Demanda
     const handleCriarDemanda = async (e: React.FormEvent) => {
         e.preventDefault();
         setMensagem({ texto: "", tipo: "" });
@@ -33,22 +65,19 @@ export default function DemandasCompradorPage() {
         setCarregando(true);
 
         try {
-            // Cria um novo documento na coleção "demandas"
             await addDoc(collection(db, "demandas"), {
-                compradorId: user?.uid, // ID de quem criou (fundamental para segurança depois)
+                compradorId: user?.uid,
                 nomeComprador: user?.razaoSocial || user?.nome || "Comprador",
                 descricao: descricao,
                 urgencia: urgencia,
-                status: "aberta", // Toda demanda nasce 'aberta' para os fornecedores verem
+                status: "aberta",
                 dataCriacao: new Date().toISOString(),
             });
 
-            // Sucesso! Limpa o formulário e avisa o usuário
             setDescricao("");
             setUrgencia("normal");
             setMensagem({ texto: "Sua solicitação foi enviada para o mercado!", tipo: "sucesso" });
 
-            // Remove a mensagem de sucesso após 5 segundos
             setTimeout(() => setMensagem({ texto: "", tipo: "" }), 5000);
 
         } catch (error) {
@@ -59,6 +88,22 @@ export default function DemandasCompradorPage() {
         }
     };
 
+    // Função auxiliar para definir as cores das "etiquetas" de status e urgência
+    const renderizarEtiqueta = (texto: string, tipo: 'status' | 'urgencia') => {
+        if (tipo === 'status' && texto === 'aberta') {
+            return <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">Aberta</span>;
+        }
+        if (tipo === 'urgencia') {
+            const cores: any = {
+                normal: "bg-gray-100 text-gray-700",
+                urgente: "bg-orange-100 text-pedraum-orange",
+                critico: "bg-red-100 text-red-700"
+            };
+            return <span className={`${cores[texto] || cores.normal} px-2 py-1 rounded text-xs font-bold uppercase ml-2`}>{texto}</span>;
+        }
+        return <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-bold uppercase">{texto}</span>;
+    };
+
     return (
         <ProtectedRoute allowedRoles={["comprador"]}>
             <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -66,7 +111,6 @@ export default function DemandasCompradorPage() {
 
                 <div className="flex-1 max-w-5xl w-full mx-auto p-4 py-10 space-y-8">
 
-                    {/* MENSAGEM DE ACOLHIDA DINÂMICA */}
                     <div className="mb-2">
                         <h1 className="text-3xl font-bold text-pedraum-dark">
                             Olá, {user?.razaoSocial || user?.nome || "visitante"}! 👋
@@ -83,7 +127,6 @@ export default function DemandasCompradorPage() {
                             <p className="text-gray-500 text-sm">Descreva o que você precisa e receba contatos.</p>
                         </div>
 
-                        {/* Exibe erro ou sucesso */}
                         {mensagem.texto && (
                             <div className={`mb-6 p-4 rounded-lg text-sm font-medium ${mensagem.tipo === "sucesso" ? "bg-green-50 text-green-700 border-l-4 border-green-500" : "bg-red-50 text-red-700 border-l-4 border-red-500"}`}>
                                 {mensagem.texto}
@@ -91,7 +134,6 @@ export default function DemandasCompradorPage() {
                         )}
 
                         <form onSubmit={handleCriarDemanda} className="space-y-6">
-                            {/* Descrição Detalhada */}
                             <div>
                                 <label className="block text-sm font-bold text-gray-800 uppercase tracking-wide mb-2">
                                     Descrição Detalhada*
@@ -109,7 +151,6 @@ export default function DemandasCompradorPage() {
                                 </div>
                             </div>
 
-                            {/* Anexos (Visual apenas por enquanto) */}
                             <div className="opacity-50 cursor-not-allowed">
                                 <label className="block text-sm font-medium text-gray-800 mb-3">
                                     Anexos (Em breve)
@@ -124,7 +165,6 @@ export default function DemandasCompradorPage() {
                                 </div>
                             </div>
 
-                            {/* Urgência */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-800 mb-3">
                                     Urgência
@@ -157,7 +197,6 @@ export default function DemandasCompradorPage() {
                                 </div>
                             </div>
 
-                            {/* Botão Cadastrar */}
                             <div className="pt-4 flex justify-center">
                                 <button
                                     type="submit"
@@ -174,7 +213,7 @@ export default function DemandasCompradorPage() {
                         </form>
                     </div>
 
-                    {/* --- CARD 2: MEUS PEDIDOS (Por enquanto estático) --- */}
+                    {/* --- CARD 2: MEUS PEDIDOS --- */}
                     <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.05)] p-8 md:p-10">
                         <div className="mb-6">
                             <h2 className="text-2xl font-bold text-gray-900 mb-1">Seus Pedidos</h2>
@@ -182,34 +221,50 @@ export default function DemandasCompradorPage() {
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[600px] text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-50 border-b border-gray-100">
-                                        <th className="py-4 px-4 font-bold text-gray-800 rounded-tl-lg">Status</th>
-                                        <th className="py-4 px-4 font-bold text-gray-800">Descrição</th>
-                                        <th className="py-4 px-4 font-bold text-gray-800 text-right rounded-tr-lg">Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                                        <td className="py-4 px-4 text-gray-800 font-medium">
-                                            <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">Aberta</span>
-                                        </td>
-                                        <td className="py-4 px-4 text-gray-600 text-sm max-w-md truncate">
-                                            Exemplo de demanda (Em breve buscando do banco)
-                                        </td>
-                                        <td className="py-4 px-4 text-right">
-                                            <Link href="#" className="inline-block">
-                                                <button className="border border-pedraum-orange text-pedraum-orange hover:bg-orange-50 font-bold text-xs py-2 px-4 rounded-md transition-colors">
-                                                    Ver Detalhes
-                                                </button>
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            {carregandoDemandas ? (
+                                <div className="flex justify-center py-10">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-pedraum-orange"></div>
+                                </div>
+                            ) : minhasDemandas.length === 0 ? (
+                                <div className="text-center py-10 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                                    Você ainda não tem nenhuma demanda cadastrada.
+                                </div>
+                            ) : (
+                                <table className="w-full min-w-[600px] text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-100 border-b border-gray-300">
+                                            <th className="py-4 px-4 font-bold text-gray-800 rounded-tl-lg">Status</th>
+                                            <th className="py-4 px-4 font-bold text-gray-800">Descrição</th>
+                                            <th className="py-4 px-4 font-bold text-gray-800 text-right rounded-tr-lg">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {minhasDemandas.map((demanda) => (
+                                            <tr key={demanda.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                                <td className="py-4 px-4 text-gray-800 font-medium">
+                                                    {renderizarEtiqueta(demanda.status, 'status')}
+                                                    {renderizarEtiqueta(demanda.urgencia, 'urgencia')}
+                                                </td>
+                                                <td className="py-4 px-4 text-gray-600 text-sm max-w-md">
+                                                    <p className="line-clamp-2">{demanda.descricao}</p>
+                                                    <span className="text-xs text-gray-400 mt-1 block">
+                                                        Criado em: {new Date(demanda.dataCriacao).toLocaleDateString('pt-BR')}
+                                                    </span>
+                                                </td>
+                                                <td className="py-4 px-4 text-right align-middle">
+                                                    {/* O Link para a página de detalhes daquela demanda específica */}
+                                                    <Link href={`/comprador/demanda/${demanda.id}`} className="inline-block">
+                                                        <button className="border border-pedraum-orange text-pedraum-orange hover:bg-orange-50 font-bold text-xs py-2 px-4 rounded-md transition-colors whitespace-nowrap">
+                                                            Ver Detalhes
+                                                        </button>
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
-
                     </div>
 
                 </div>
