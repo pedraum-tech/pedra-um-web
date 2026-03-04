@@ -7,25 +7,30 @@ import { ProtectedRoute } from "@/src/components/ProtectedRoute";
 import { useAuth } from "@/src/contexts/AuthContext";
 
 // Ferramentas do Firebase
-import { collection, addDoc, query, where, onSnapshot } from "firebase/firestore";
-import { db } from "@/src/lib/firebase";
+import { collection, addDoc, query, where, onSnapshot, doc, setDoc } from "firebase/firestore";
+import { db, storage } from "@/src/lib/firebase";
+import { AnexosDemanda } from "@/src/components/AnexosDemanda";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 export default function DemandasCompradorPage() {
     const { user } = useAuth();
 
-    // 1. Estados do Formulário de Demanda
+    // Estados do Formulário de Demanda
     const [descricao, setDescricao] = useState("");
     const [urgencia, setUrgencia] = useState("normal");
 
-    // 2. Estados de Controle
+    // Estados de Controle
     const [carregando, setCarregando] = useState(false);
     const [mensagem, setMensagem] = useState({ texto: "", tipo: "" });
 
-    // NOVO: 3. Estado para guardar a lista de demandas do banco
+    // Estado para guardar a lista de demandas do banco
     const [minhasDemandas, setMinhasDemandas] = useState<any[]>([]);
     const [carregandoDemandas, setCarregandoDemandas] = useState(true);
 
-    // NOVO: 4. Efeito para buscar as demandas em TEMPO REAL
+    const [imagensDemanda, setImagensDemanda] = useState<File[]>([]);
+    const [pdfDemanda, setPdfDemanda] = useState<File | null>(null);
+
+    // Efeito para buscar as demandas em TEMPO REAL
     useEffect(() => {
         if (!user?.uid) return;
 
@@ -53,7 +58,7 @@ export default function DemandasCompradorPage() {
         return () => unsubscribe();
     }, [user?.uid]);
 
-    // 5. Função de Criar Demanda
+    // Função de Criar Demanda
     const handleCriarDemanda = async (e: React.FormEvent) => {
         e.preventDefault();
         setMensagem({ texto: "", tipo: "" });
@@ -65,24 +70,58 @@ export default function DemandasCompradorPage() {
         setCarregando(true);
 
         try {
-            await addDoc(collection(db, "demandas"), {
+            // A MÁGICA: Pré-gerar a referência e o ID da nova demanda
+            const novaDemandaRef = doc(collection(db, "demandas"));
+            const demandaId = novaDemandaRef.id; // Pegamos o ID gerado!
+
+            const urlsFotos: string[] = [];
+            let urlPdf: string | null = null;
+
+            // Upload das Imagens (Agora usando o seu caminho perfeito)
+            if (imagensDemanda.length > 0) {
+                const uploadPromises = imagensDemanda.map(async (imagem) => {
+                    // Arquitetura: {UID}/demandas/{DEMANDA_ID}/fotos/arquivo.jpg
+                    const imageRef = ref(storage, `${user?.uid}/demandas/${demandaId}/fotos/${Date.now()}_${imagem.name}`);
+                    await uploadBytes(imageRef, imagem);
+                    return await getDownloadURL(imageRef);
+                });
+
+                const urlsResolvidas = await Promise.all(uploadPromises);
+                urlsFotos.push(...urlsResolvidas);
+            }
+
+            // Upload do PDF
+            if (pdfDemanda) {
+                // Arquitetura: {UID}/demandas/{DEMANDA_ID}/documentos/arquivo.pdf
+                const pdfRef = ref(storage, `${user?.uid}/demandas/${demandaId}/documentos/${Date.now()}_${pdfDemanda.name}`);
+                await uploadBytes(pdfRef, pdfDemanda);
+                urlPdf = await getDownloadURL(pdfRef);
+            }
+
+            // Salvar no banco usando o setDoc no ID que já reservamos
+            await setDoc(novaDemandaRef, {
                 compradorId: user?.uid,
                 nomeComprador: user?.razaoSocial || user?.nome || "Comprador",
                 descricao: descricao,
                 urgencia: urgencia,
                 status: "aberta",
+                fotos: urlsFotos,
+                documentoPdf: urlPdf,
                 dataCriacao: new Date().toISOString(),
             });
 
+            // Limpeza da tela
             setDescricao("");
             setUrgencia("normal");
-            setMensagem({ texto: "Sua solicitação foi enviada para o mercado!", tipo: "sucesso" });
+            setImagensDemanda([]);
+            setPdfDemanda(null);
 
+            setMensagem({ texto: "Sua solicitação e anexos foram enviados para o mercado!", tipo: "sucesso" });
             setTimeout(() => setMensagem({ texto: "", tipo: "" }), 5000);
 
         } catch (error) {
-            console.error("Erro ao criar demanda:", error);
-            setMensagem({ texto: "Erro ao cadastrar demanda. Tente novamente.", tipo: "erro" });
+            console.error("Erro ao criar demanda com anexos:", error);
+            setMensagem({ texto: "Erro ao cadastrar demanda. Verifique sua conexão e tente novamente.", tipo: "erro" });
         } finally {
             setCarregando(false);
         }
@@ -151,19 +190,12 @@ export default function DemandasCompradorPage() {
                                 </div>
                             </div>
 
-                            <div className="opacity-50 cursor-not-allowed">
-                                <label className="block text-sm font-medium text-gray-800 mb-3">
-                                    Anexos (Em breve)
-                                </label>
-                                <div className="flex flex-wrap gap-3 pointer-events-none">
-                                    <button type="button" className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-500">
-                                        Imagens (5 max.)
-                                    </button>
-                                    <button type="button" className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-500">
-                                        PDF (1 max.)
-                                    </button>
-                                </div>
-                            </div>
+                            <AnexosDemanda
+                                imagens={imagensDemanda}
+                                setImagens={setImagensDemanda}
+                                pdf={pdfDemanda}
+                                setPdf={setPdfDemanda}
+                            />
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-800 mb-3">

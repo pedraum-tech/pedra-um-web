@@ -36,25 +36,25 @@ export function AvatarUploader({ uid, fotoAtual, nomeUsuario, onUploadSuccess }:
         setCarregando(true);
 
         try {
-            // 1. Cria a referência da pasta no Storage
-            const fileRef = ref(storage, `avatars/${uid}/perfil_${Date.now()}`);
+            // Cria a referência da pasta no Storage
+            const fileRef = ref(storage, `${uid}/avatar/perfil_${Date.now()}`);
 
-            // 2. Faz o upload físico da imagem
+            // Faz o upload físico da imagem
             await uploadBytes(fileRef, file);
 
-            // 3. Pega o link público gerado
+            // Pega o link público gerado
             const photoURL = await getDownloadURL(fileRef);
 
-            // 4. Salva no Auth do Google
+            // Salva no Auth do Google
             if (auth.currentUser) {
                 await updateProfile(auth.currentUser, { photoURL });
             }
 
-            // 5. Salva no Firestore
+            // Salva no Firestore
             const userDoc = doc(db, "usuarios", uid);
             await updateDoc(userDoc, { fotoPerfil: photoURL });
 
-            // 6. Atualiza a tela
+            // Atualiza a tela
             onUploadSuccess(photoURL);
 
         } catch (error) {
