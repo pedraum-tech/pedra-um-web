@@ -1,13 +1,19 @@
 import { DemandaFormData } from "../page";
-import { Image as ImageIcon, FileText, AlertCircle, Clock, Flame } from "lucide-react";
+import { AnexosDemanda } from "@/src/components/AnexosDemanda"; // Importando o nosso componente!
 
 interface Step2Props {
     formData: DemandaFormData;
     updateFormData: (data: Partial<DemandaFormData>) => void;
     onFinish: () => void;
+    salvando: boolean;
+    // Novas props para os arquivos
+    imagens: File[];
+    setImagens: (imagens: File[]) => void;
+    pdf: File | null;
+    setPdf: (pdf: File | null) => void;
 }
 
-export function Step2Detalhes({ formData, updateFormData, onFinish }: Step2Props) {
+export function Step2Detalhes({ formData, updateFormData, onFinish, salvando, imagens, setImagens, pdf, setPdf }: Step2Props) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -40,24 +46,20 @@ export function Step2Detalhes({ formData, updateFormData, onFinish }: Step2Props
                     </div>
                 </div>
 
-                {/* Anexos */}
-                <div>
-                    <label className="block text-sm font-bold text-gray-900 mb-3">Anexos (opcional)</label>
-                    <div className="flex gap-3">
-                        <button type="button" className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-pedraum-orange text-sm font-medium text-pedraum-orange hover:bg-orange-50 transition-colors">
-                            <ImageIcon className="w-4 h-4" /> Imagens (5 max.)
-                        </button>
-                        <button type="button" className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-pedraum-orange text-sm font-medium text-pedraum-orange hover:bg-orange-50 transition-colors">
-                            <FileText className="w-4 h-4" /> PDF (1 max.)
-                        </button>
-                    </div>
+                {/* Usando o Componente de Anexos Real */}
+                <div className="pt-2 pb-2">
+                    <AnexosDemanda
+                        imagens={imagens}
+                        setImagens={setImagens}
+                        pdf={pdf}
+                        setPdf={setPdf}
+                    />
                 </div>
 
                 {/* Urgência */}
                 <div>
                     <label className="block text-sm font-bold text-gray-900 mb-3">Urgência</label>
                     <div className="flex flex-wrap gap-3">
-
                         <button
                             type="button"
                             onClick={() => updateFormData({ urgencia: "normal" })}
@@ -66,7 +68,6 @@ export function Step2Detalhes({ formData, updateFormData, onFinish }: Step2Props
                         >
                             😐 Normal
                         </button>
-
                         <button
                             type="button"
                             onClick={() => updateFormData({ urgencia: "urgente" })}
@@ -75,7 +76,6 @@ export function Step2Detalhes({ formData, updateFormData, onFinish }: Step2Props
                         >
                             😔 Urgente (7 dias)
                         </button>
-
                         <button
                             type="button"
                             onClick={() => updateFormData({ urgencia: "critico" })}
@@ -84,14 +84,17 @@ export function Step2Detalhes({ formData, updateFormData, onFinish }: Step2Props
                         >
                             🚨 Crítico (48h)
                         </button>
-
                     </div>
                 </div>
 
-                {/* Botão Final */}
+                {/* Botão Final Dinâmico */}
                 <div className="pt-6 flex justify-end">
-                    <button type="submit" className="bg-pedraum-orange hover:bg-orange-600 text-gray-900 font-bold py-3 px-8 rounded-lg transition-colors shadow-md">
-                        Cadastrar Demanda
+                    <button
+                        type="submit"
+                        disabled={salvando}
+                        className="bg-pedraum-orange hover:bg-orange-600 text-gray-900 font-bold py-3 px-8 rounded-lg transition-colors shadow-md disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[200px]"
+                    >
+                        {salvando ? "Enviando..." : "Cadastrar Demanda"}
                     </button>
                 </div>
 
