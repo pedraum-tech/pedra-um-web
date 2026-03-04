@@ -5,14 +5,21 @@ import { Header } from "@/src/components/Header";
 import { ArrowRight, Search, Settings, Truck, BarChart3, Target, ShieldCheck, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+// NOVO: Importando o useRouter
+import { useRouter } from "next/navigation";
 
 
 export default function Home() {
+    const router = useRouter(); // NOVO: Iniciando o router
+
     // Estado que controla o popup (começa fechado)
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Estado para armazenar o texto da demanda (opcional, para mostrar no modal ou enviar para backend)
     const [textoDemanda, setTextoDemanda] = useState("");
+
+    // NOVO: Estado para armazenar o protocolo que o usuário quer buscar
+    const [protocoloBusca, setProtocoloBusca] = useState("");
 
     // Função que valida e abre o modal
     const handleEnviarDemanda = () => {
@@ -26,6 +33,20 @@ export default function Home() {
         // Se passou na validação acima, abre o popup!
         setIsModalOpen(true);
     };
+
+    // NOVO: Função para buscar o protocolo
+    const handleBuscarProtocolo = (e?: React.FormEvent) => {
+        if (e) e.preventDefault(); // Evita recarregar a página se usar o "Enter"
+
+        if (protocoloBusca.trim().length < 5) {
+            alert("Por favor, digite um número de protocolo válido.");
+            return;
+        }
+
+        // Redireciona o visitante para a tela de rastreio dinâmica
+        router.push(`/rastrear/${protocoloBusca.trim()}`);
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             <Header />
@@ -65,8 +86,31 @@ export default function Home() {
                             </button>
                         </div>
                     </div>
+
+                    {/* NOVO: Barra de Rastreio Discreta */}
+                    <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                        <p className="text-gray-500 text-sm font-medium">Já fez uma solicitação?</p>
+
+                        <form onSubmit={handleBuscarProtocolo} className="flex bg-white rounded-full p-1.5 border border-gray-200 shadow-sm focus-within:ring-2 focus-within:ring-pedraum-orange/50 focus-within:border-pedraum-orange transition-all w-full sm:w-auto">
+                            <input
+                                type="text"
+                                placeholder="Digite seu protocolo"
+                                value={protocoloBusca}
+                                onChange={(e) => setProtocoloBusca(e.target.value.toUpperCase())} // Deixa maiúsculo automático
+                                className="bg-transparent border-none outline-none px-4 text-sm text-gray-700 w-full sm:w-48 placeholder:text-gray-400 uppercase font-medium"
+                            />
+                            <button
+                                type="submit"
+                                className="bg-pedraum-dark hover:bg-black text-white px-5 py-2 rounded-full text-sm font-bold transition-colors flex items-center gap-2"
+                            >
+                                <Search className="w-4 h-4" /> Rastrear
+                            </button>
+                        </form>
+                    </div>
+
                 </div>
             </section>
+
             {/* O Popup escondido no código */}
             <AuthModal
                 isOpen={isModalOpen}
