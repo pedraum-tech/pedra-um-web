@@ -2,27 +2,28 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { ChevronLeft, Loader2 } from "lucide-react";
 
 // Firebase
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/src/lib/firebase";
 
+// 1. A Importação correta e completa do Barril
+import { DemandaModel, UsuarioModel, PropostaModel } from "@/src/types";
+
 export default function EditarDemandaAdminPage() {
     const params = useParams();
     const demandaId = params.id as string;
     const router = useRouter();
 
-    const [demanda, setDemanda] = useState<any>(null);
+    const [demanda, setDemanda] = useState<DemandaModel | null>(null);
 
-    // Lista de TODOS os fornecedores da plataforma para o Admin escolher
-    const [todosFornecedores, setTodosFornecedores] = useState<any[]>([]);
-
-    // Lista dos IDs dos fornecedores que o Admin clicou em "Selecionar"
+    // 2. Estados tipados rigorosamente
+    const [todosFornecedores, setTodosFornecedores] = useState<UsuarioModel[]>([]);
     const [fornecedoresSelecionados, setFornecedoresSelecionados] = useState<string[]>([]);
-
-    // Lista de quem já deu "Match" (Visualizou/Liberou contato)
-    const [fornecedoresMatch, setFornecedoresMatch] = useState<any[]>([]);
+    // CORREÇÃO AQUI: As propostas (quem clicou em liberar contato) usam a PropostaModel
+    const [fornecedoresMatch, setFornecedoresMatch] = useState<PropostaModel[]>([]);
 
     const [carregando, setCarregando] = useState(true);
     const [salvando, setSalvando] = useState(false);
@@ -33,7 +34,7 @@ export default function EditarDemandaAdminPage() {
     const [categoriaEdit, setCategoriaEdit] = useState("");
     const [ufEdit, setUfEdit] = useState("");
     const [urgenciaEdit, setUrgenciaEdit] = useState("");
-    const [statusEdit, setStatusEdit] = useState(""); // Novo estado para o Admin controlar o status
+    const [statusEdit, setStatusEdit] = useState("");
 
     useEffect(() => {
         async function buscarDados() {
@@ -45,30 +46,38 @@ export default function EditarDemandaAdminPage() {
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
-                    const dados = { id: docSnap.id, ...docSnap.data() };
+                    // Tipamos o retorno explicitamente como DemandaModel
+                    const dados = { id: docSnap.id, ...docSnap.data() } as DemandaModel;
                     setDemanda(dados);
 
-                    setTituloEdit(dados.titulo || dados.descricao?.substring(0, 30) || "Título da Demanda");
+                    setTituloEdit(dados.nomeComprador || "Título da Demanda"); // Ajustado para usar o nome do comprador como título temporário ou crie o campo título na model se quiser
                     setDescricaoEdit(dados.descricao || "");
                     setCategoriaEdit(dados.categoria || "Britagem");
                     setUfEdit(dados.uf || "MG");
                     setUrgenciaEdit(dados.urgencia || "normal");
                     setStatusEdit(dados.status || "curadoria");
 
-                    // Já carrega quem estava selecionado antes no banco
                     setFornecedoresSelecionados(dados.fornecedoresSelecionados || []);
                 }
 
-                // 2. Busca TODOS os fornecedores da plataforma para o algoritmo de Matchmaking
-                const qFornecedores = query(collection(db, "usuarios"), where("tipo_usuario", "==", "fornecedor"));
+                // 2. Busca TODOS os fornecedores (CORRIGIDO: where("role", "==", "fornecedor"))
+                const qFornecedores = query(collection(db, "usuarios"), where("role", "==", "fornecedor"));
                 const snapFornecedores = await getDocs(qFornecedores);
-                const listaFornecedores = snapFornecedores.docs.map(d => ({ id: d.id, ...d.data() }));
+                const listaFornecedores = snapFornecedores.docs.map(d => ({
+                    id: d.id,
+                    ...d.data()
+                })) as UsuarioModel[];
+
                 setTodosFornecedores(listaFornecedores);
 
-                // 3. Busca quem já deu Match (As "propostas" geradas)
+                // 3. Busca as PROPOSTAS geradas (Matchs reais)
                 const qPropostas = query(collection(db, "propostas"), where("demandaId", "==", demandaId));
                 const snapPropostas = await getDocs(qPropostas);
-                const listaMatches = snapPropostas.docs.map(d => ({ id: d.id, ...d.data() }));
+                const listaMatches = snapPropostas.docs.map(d => ({
+                    id: d.id,
+                    ...d.data()
+                })) as PropostaModel[];
+
                 setFornecedoresMatch(listaMatches);
 
             } catch (error) {
@@ -80,13 +89,12 @@ export default function EditarDemandaAdminPage() {
         buscarDados();
     }, [demandaId]);
 
-    // Função para Adicionar/Remover um fornecedor da lista de selecionados
     const toggleFornecedor = (fornecedorId: string) => {
         setFornecedoresSelecionados(prev => {
             if (prev.includes(fornecedorId)) {
-                return prev.filter(id => id !== fornecedorId); // Remove se já estiver
+                return prev.filter(id => id !== fornecedorId);
             } else {
-                return [...prev, fornecedorId]; // Adiciona se não estiver
+                return [...prev, fornecedorId];
             }
         });
     };
@@ -96,20 +104,18 @@ export default function EditarDemandaAdminPage() {
         try {
             const docRef = doc(db, "demandas", demandaId);
 
-            // Lógica de Inteligência: Se ele estava em curadoria, e o Admin selecionou fornecedores,
-            // podemos automaticamente sugerir que o status mude para "aberta".
             const novoStatus = (statusEdit === "curadoria" && fornecedoresSelecionados.length > 0)
                 ? "aberta"
                 : statusEdit;
 
             await updateDoc(docRef, {
-                titulo: tituloEdit,
+                // Aqui salvamos os campos básicos no doc
                 descricao: descricaoEdit,
                 categoria: categoriaEdit,
                 uf: ufEdit,
                 urgencia: urgenciaEdit,
                 status: novoStatus,
-                fornecedoresSelecionados: fornecedoresSelecionados // O ESCUDO DE INVISIBILIDADE SENDO SALVO!
+                fornecedoresSelecionados: fornecedoresSelecionados
             });
 
             setStatusEdit(novoStatus);
@@ -142,7 +148,7 @@ export default function EditarDemandaAdminPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
 
                 <div className="mb-6 flex gap-4 items-center">
-                    <span className={`text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide ${statusEdit === 'resolvida' ? 'bg-emerald-500' : statusEdit === 'curadoria' ? 'bg-purple-500' : 'bg-blue-500'}`}>
+                    <span className={`text-white text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide ${statusEdit === 'resolvida' || statusEdit.startsWith('fechada') ? 'bg-emerald-500' : statusEdit === 'curadoria' ? 'bg-purple-500' : 'bg-blue-500'}`}>
                         Status: {statusEdit}
                     </span>
 
@@ -154,14 +160,14 @@ export default function EditarDemandaAdminPage() {
                         <option value="curadoria">Em Curadoria</option>
                         <option value="aberta">Aberta (Mercado)</option>
                         <option value="negociacao">Em Negociação</option>
-                        <option value="resolvida">Resolvida</option>
+                        <option value="resolvida">Resolvida / Fechada</option>
                     </select>
                 </div>
 
                 <div className="space-y-6">
                     <div>
-                        <label className="block text-sm font-bold text-gray-900 mb-2">Título da Demanda</label>
-                        <input type="text" value={tituloEdit} onChange={(e) => setTituloEdit(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-pedraum-orange outline-none transition-all text-gray-700" />
+                        <label className="block text-sm font-bold text-gray-900 mb-2">Cliente Solicitante</label>
+                        <input type="text" readOnly value={demanda.nomeComprador || 'Cliente não identificado'} className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-600 outline-none cursor-not-allowed" />
                     </div>
 
                     <div>
