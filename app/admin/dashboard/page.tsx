@@ -5,10 +5,12 @@ import { AdminCard } from "@/src/components/admin/AdminCard";
 import { collection, query, onSnapshot, where, getDocs } from "firebase/firestore";
 import { db } from "@/src/lib/firebase";
 import { Loader2 } from "lucide-react";
+// 1. A Importação mágica do nosso "Barril"!
+import { DemandaModel } from "@/src/types";
 
 export default function DashboardPage() {
-    // Estados para as Demandas
-    const [demandas, setDemandas] = useState<any[]>([]);
+    // 2. Agora o estado não é mais 'any', ele obedece ao contrato da DemandaModel
+    const [demandas, setDemandas] = useState<DemandaModel[]>([]);
     const [carregando, setCarregando] = useState(true);
 
     // Estados para as Métricas
@@ -24,10 +26,11 @@ export default function DashboardPage() {
         const qDemandas = query(collection(db, "demandas"));
 
         const unsubscribeDemandas = onSnapshot(qDemandas, (snapshot) => {
+            // 3. Avisamos ao TypeScript: "O que vem do banco é uma lista de DemandaModel"
             const demandasData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
-            }));
+            })) as DemandaModel[];
 
             // Ordenar por data mais recente
             demandasData.sort((a, b) => new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime());
@@ -37,8 +40,8 @@ export default function DashboardPage() {
             setCarregando(false);
         });
 
-        // 2. FUNÇÃO PARA CALCULAR MÉTRICAS DOS ÚLTIMOS 7 DIAS
-        const calcularMetricas = async (todasDemandas: any[]) => {
+        // 4. Tipamos o parâmetro da função para aceitar apenas DemandaModel
+        const calcularMetricas = async (todasDemandas: DemandaModel[]) => {
             const seteDiasAtras = new Date();
             seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
 
@@ -80,17 +83,11 @@ export default function DashboardPage() {
         return () => unsubscribeDemandas();
     }, []);
 
-    // 3. SEPARANDO AS DEMANDAS NAS COLUNAS
-    // Para adaptar aos status que já criamos:
-    // Em Análise -> Poderia ser demandas pendentes de curadoria (como tudo entra como "aberta" agora, vamos deixar vazia por enquanto ou criar lógica específica).
-    // Novas -> Demandas "aberta"
-    // Em Negociação -> Demandas "aberta" que já tem pelo menos 1 proposta/contato liberado (precisaria cruzar com a tabela de propostas, vamos simplificar por hora)
-    // Concluídas -> Demandas "resolvida"
-
-    // SEPARANDO AS DEMANDAS NAS COLUNAS OFICIAIS DO FLUXO
+    // 3. SEPARANDO AS DEMANDAS NAS COLUNAS OFICIAIS DO FLUXO
     const demandasCuradoria = demandas.filter(d => d.status === "curadoria");
     const demandasAbertas = demandas.filter(d => d.status === "aberta");
     const demandasNegociacao = demandas.filter(d => d.status === "negociacao");
+    // Verifica se o status começa com "fechada" ou é "resolvida" (por garantia)
     const demandasConcluidas = demandas.filter(d => d.status === "resolvida" || d.status.startsWith("fechada"));
 
     return (
@@ -147,7 +144,7 @@ export default function DashboardPage() {
                                 titulo={demanda.descricao.substring(0, 30) + '...'}
                                 cliente={demanda.nomeComprador}
                                 uf={demanda.uf || "MG"}
-                                urgencia={demanda.urgencia}
+                                urgencia={demanda.urgencia as "Normal"}
                                 status={demanda.status}
                             />
                         ))}
@@ -165,7 +162,7 @@ export default function DashboardPage() {
                                 titulo={demanda.descricao.substring(0, 30) + '...'}
                                 cliente={demanda.nomeComprador}
                                 uf={demanda.uf || "MG"}
-                                urgencia={demanda.urgencia}
+                                urgencia={demanda.urgencia as "Normal"}
                                 status={demanda.status}
                             />
                         ))}
@@ -183,7 +180,7 @@ export default function DashboardPage() {
                                 titulo={demanda.descricao.substring(0, 30) + '...'}
                                 cliente={demanda.nomeComprador}
                                 uf={demanda.uf || "MG"}
-                                urgencia={demanda.urgencia}
+                                urgencia={demanda.urgencia as "Normal"}
                                 status={demanda.status}
                                 stats={{ enviados: 1, respostas: 1 }} // Mockado por enquanto para o visual
                             />
@@ -202,7 +199,7 @@ export default function DashboardPage() {
                                 titulo={demanda.descricao.substring(0, 30) + '...'}
                                 cliente={demanda.nomeComprador}
                                 uf={demanda.uf || "MG"}
-                                urgencia={demanda.urgencia}
+                                urgencia={demanda.urgencia as "Normal"}
                                 status={demanda.motivoFechamento === 'na_plataforma' ? 'fechada_match' : 'fechada_s_ret'}
                             />
                         ))}
