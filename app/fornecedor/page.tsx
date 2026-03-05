@@ -6,6 +6,7 @@ import { OportunidadeCard } from "@/src/components/OportunidadeCard";
 import { ProtectedRoute } from "@/src/components/ProtectedRoute";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { Loader2, SearchX } from "lucide-react";
+import { DemandaModel } from "@/src/types";
 
 // Ferramentas do Firebase
 import { collection, query, where, onSnapshot } from "firebase/firestore";
@@ -15,7 +16,7 @@ export default function OportunidadesPage() {
     const { user } = useAuth();
 
     // 1. Estados para guardar as demandas reais e o carregamento
-    const [demandas, setDemandas] = useState<any[]>([]);
+    const [demandas, setDemandas] = useState<DemandaModel[]>([]);
     const [carregando, setCarregando] = useState(true);
 
     // 2. Busca em Tempo Real no Banco de Dados (COM BARREIRA DE INVISIBILIDADE)
@@ -33,7 +34,7 @@ export default function OportunidadesPage() {
             const demandasBuscadas = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
-            }));
+            })) as DemandaModel[];
 
             // Filtro duplo no JavaScript para garantir que ele só veja o que deve
             // (Ele pode ver se está aberta ou se já está em negociação, mas não vê as fechadas)

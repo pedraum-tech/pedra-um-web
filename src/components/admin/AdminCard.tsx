@@ -1,25 +1,19 @@
 import { User, MapPin } from "lucide-react";
-import Link from "next/link"; // Importando o Link do Next.js
+import Link from "next/link";
+import { StatusDemanda, UrgenciaDemanda } from "@/src/types";
 
-// 1. Definição exata dos seus status e sub-status
-export type CardStatus =
-    | 'curadoria'       // Coluna 1: Chegou agora
-    | 'aberta'          // Coluna 2: Aprovada, esperando fornecedores
-    | 'negociacao'      // Coluna 3: Já tem match (pelo menos 1)
-    | 'fechada_match'   // Coluna 4 (Verde): Sucesso
-    | 'fechada_fora'    // Coluna 4 (Laranja): Comprou fora
-    | 'fechada_s_ret'   // Coluna 4 (Vermelho): Sem retorno
-    | 'fechada_s_mat';  // Coluna 4 (Amarelo): Sem match encontrado
+// Vamos estender o StatusDemanda do nosso barril com os "status fantasmas" de fechamento
+type CardStatus = StatusDemanda | 'fechada_match' | 'fechada_fora' | 'fechada_s_ret' | 'fechada_s_mat' | string;
 
 interface AdminCardProps {
     id: string; // O ID bonito (ex: PRT-123)
-    demandaIdReal: string; // NOVO: O ID feio do Firebase para a URL
+    demandaIdReal: string; // O ID feio do Firebase para a URL
     data: string;
     titulo: string;
     cliente: string;
     uf: string;
-    urgencia?: 'Normal' | 'Urgente' | 'crítico'; // Ajustado para aceitar minúsculo também, do banco
-    status: CardStatus | string; // Aceita string caso o banco mande algo diferente
+    urgencia?: UrgenciaDemanda | string;
+    status: CardStatus;
     stats?: { enviados: number; respostas: number };
 }
 
@@ -30,14 +24,18 @@ export function AdminCard({
     titulo,
     cliente,
     uf,
-    urgencia = 'Normal',
+    urgencia = 'normal',
     status,
     stats
 }: AdminCardProps) {
 
+    // 1. Tratamento seguro do status para evitar erro de string undefined
+    const safeStatus = status ? status.toString().toLowerCase() : '';
+    const isClosed = safeStatus.startsWith('fechada') || safeStatus === 'resolvida';
+
     // 2. Configuração Visual dos Status "Fechados"
     const getVisualConfig = () => {
-        switch (status) {
+        switch (safeStatus) {
             case 'fechada_match':
                 return { borderColor: '#10B981', label: 'MATCH REALIZADO', dotColor: '#10B981', bgColor: '#ECFDF5' };
             case 'fechada_fora':
@@ -47,12 +45,11 @@ export function AdminCard({
             case 'fechada_s_mat':
                 return { borderColor: '#F6FF00', label: 'SEM MATCH', dotColor: '#F6FF00', bgColor: '#FEFCE8' };
             default:
-                return { borderColor: '#E2E8F0', label: '', dotColor: '', bgColor: 'white' };
+                return { borderColor: '#E2E8F0', label: 'FINALIZADA', dotColor: '#9ca3af', bgColor: '#F3F4F6' };
         }
     };
 
     const config = getVisualConfig();
-    const isClosed = status.toString().startsWith('fechada') || status === 'resolvida'; // Ajuste p/ banco
 
     // 3. Renderização do Rodapé (Ações)
     const renderFooter = () => {
@@ -62,20 +59,21 @@ export function AdminCard({
                     className="mt-3 w-full py-2 rounded-md flex items-center justify-center gap-2 font-bold text-[10px] uppercase tracking-wide border border-transparent"
                     style={{ backgroundColor: config.bgColor, color: config.dotColor, borderColor: config.borderColor }}
                 >
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: config.dotColor || '#9ca3af' }} />
-                    {config.label || 'RESOLVIDA'}
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: config.dotColor }} />
+                    {config.label}
                 </div>
             );
         }
 
-        switch (status) {
+        switch (safeStatus) {
             case 'curadoria':
                 return (
                     <div className="mt-3 flex gap-2">
-                        <Link href={`/admin/demandas/${demandaIdReal}`} className="flex-1">
-                            <button className="w-full border border-gray-200 text-gray-500 hover:bg-gray-50 py-1.5 rounded text-xs font-bold uppercase transition-colors">
-                                Ver
-                            </button>
+                        <Link
+                            href={`/admin/demandas/${demandaIdReal}`}
+                            className="flex-1 border border-gray-200 text-gray-500 hover:bg-gray-50 py-1.5 rounded text-xs font-bold uppercase transition-colors text-center inline-block leading-tight align-middle"
+                        >
+                            Ver
                         </Link>
                         <button className="flex-1 bg-pedraum-orange text-white hover:bg-orange-600 py-1.5 rounded text-xs font-bold uppercase transition-colors shadow-sm">
                             Aprovar
@@ -85,10 +83,11 @@ export function AdminCard({
             case 'aberta':
                 return (
                     <div className="mt-3 flex gap-2">
-                        <Link href={`/admin/demandas/${demandaIdReal}`} className="flex-1">
-                            <button className="w-full border border-orange-200 text-orange-500 hover:bg-orange-50 py-1.5 rounded text-xs font-bold uppercase transition-colors">
-                                Editar
-                            </button>
+                        <Link
+                            href={`/admin/demandas/${demandaIdReal}`}
+                            className="flex-1 border border-orange-200 text-orange-500 hover:bg-orange-50 py-1.5 rounded text-xs font-bold uppercase transition-colors text-center inline-block leading-tight align-middle"
+                        >
+                            Editar
                         </Link>
                         <button className="flex-1 bg-pedraum-dark text-white hover:bg-slate-800 py-1.5 rounded text-xs font-bold uppercase transition-colors shadow-sm">
                             Match
@@ -112,10 +111,14 @@ export function AdminCard({
         }
     };
 
+    // 4. Tratamento seguro da Urgência
+    const isUrgente = urgencia?.toString().toLowerCase() === 'urgente';
+    const isCritico = urgencia?.toString().toLowerCase() === 'critico';
+
     return (
         <div
             className="bg-white rounded-xl p-4 shadow-sm border-l-4 w-full transition-shadow hover:shadow-md"
-            style={{ borderLeftColor: isClosed ? (config.borderColor || '#E2E8F0') : '#E2E8F0' }}
+            style={{ borderLeftColor: isClosed ? config.borderColor : '#E2E8F0' }}
         >
             {/* Cabeçalho */}
             <div className="flex justify-between items-start mb-2">
@@ -142,9 +145,9 @@ export function AdminCard({
                     <MapPin className="w-2.5 h-2.5" /> {uf}
                 </span>
 
-                {(urgencia === 'Urgente' || urgencia === 'urgente' || urgencia === 'critico') && (
+                {(isUrgente || isCritico) && (
                     <span className="px-1.5 py-0.5 rounded bg-red-50 text-[10px] font-bold text-red-500 uppercase border border-red-100">
-                        {urgencia === 'critico' ? '🚨 Crítico' : '🚨 Urgente'}
+                        {isCritico ? '🚨 Crítico' : '🚨 Urgente'}
                     </span>
                 )}
             </div>

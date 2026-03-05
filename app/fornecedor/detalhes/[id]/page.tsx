@@ -11,50 +11,55 @@ import { useAuth } from "@/src/contexts/AuthContext";
 import { collection, doc, getDoc, addDoc, query, where, getDocs, updateDoc } from "firebase/firestore";
 import { db } from "@/src/lib/firebase";
 import { Loader2, FileText, AlertCircle, Info } from "lucide-react";
+import { DemandaModel, UsuarioModel } from "@/src/types";
+
+// 1. Criamos um tipo específico para os dados de contato que vão aparecer na tela
+interface ContatoLeadProps {
+    nome: string;
+    telefone: string;
+    email: string;
+    tipo: string;
+}
 
 export default function DetalhesOportunidadePage() {
-    const { user } = useAuth();
+    const { user } = useAuth() as { user: UsuarioModel | null };
     const params = useParams();
     const demandaId = params.id as string;
     const router = useRouter();
 
     const [mostrarLead, setMostrarLead] = useState(false);
 
-    const [demanda, setDemanda] = useState<any>(null);
-    const [contatoLead, setContatoLead] = useState<any>(null);
+    // 2. Aplicamos os tipos corretos nos estados
+    const [demanda, setDemanda] = useState<DemandaModel | null>(null);
+    const [contatoLead, setContatoLead] = useState<ContatoLeadProps | null>(null);
     const [carregando, setCarregando] = useState(true);
     const [fotoAtiva, setFotoAtiva] = useState(0);
 
-    // ESTADOS DA PROPOSTA (Ocultos no layout, mas mantidos para o futuro)
+    // ESTADOS DA PROPOSTA
     const [valorProp, setValorProp] = useState("");
     const [prazoProp, setPrazoProp] = useState("");
     const [mensagemProp, setMensagemProp] = useState("");
 
-    // Controle do novo botão de Liberar Contato
     const [desbloqueandoLead, setDesbloqueandoLead] = useState(false);
-
-    // LIMITE DE LEADS (Hardcoded por enquanto, no futuro virá do BD admin)
-    const limiteLeadsTotal = 100;
 
     useEffect(() => {
         async function buscarDetalhes() {
             if (!demandaId) return;
 
             try {
-                // 1. Busca a Demanda no banco
                 const docRef = doc(db, "demandas", demandaId);
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
-                    const dadosDemanda = { id: docSnap.id, ...docSnap.data() };
+                    const dadosDemanda = { id: docSnap.id, ...docSnap.data() } as DemandaModel;
                     setDemanda(dadosDemanda);
 
-                    // 2. Busca os dados de contato do Comprador
+                    // Busca os dados de contato do Comprador
                     if (dadosDemanda.isGuest) {
                         setContatoLead({
-                            nome: dadosDemanda.nomeComprador,
-                            telefone: dadosDemanda.telefoneContato,
-                            email: "Visitante (Sem email cadastrado)",
+                            nome: dadosDemanda.nomeComprador || "Visitante",
+                            telefone: dadosDemanda.telefoneContato || "Não informado",
+                            email: dadosDemanda.compradorId || "Não informado",
                             tipo: "Visitante"
                         });
                     } else if (dadosDemanda.compradorId) {
@@ -62,7 +67,7 @@ export default function DetalhesOportunidadePage() {
                         const userSnap = await getDoc(userRef);
 
                         if (userSnap.exists()) {
-                            const dadosUser = userSnap.data();
+                            const dadosUser = userSnap.data() as UsuarioModel;
                             setContatoLead({
                                 nome: dadosUser.razaoSocial || dadosUser.nome || dadosDemanda.nomeComprador,
                                 telefone: dadosUser.telefone || "Não informado",
@@ -72,17 +77,16 @@ export default function DetalhesOportunidadePage() {
                         }
                     }
 
-                    // 3. A MÁGICA: Verifica se o fornecedor JÁ liberou esse contato antes!
-                    if (user?.uid) {
+                    // A MÁGICA: Verifica se o fornecedor JÁ liberou esse contato antes!
+                    if (user?.id) {
                         const q = query(
                             collection(db, "propostas"),
                             where("demandaId", "==", demandaId),
-                            where("fornecedorId", "==", user.uid)
+                            where("fornecedorId", "==", user.id) // Usando user.id do nosso Model
                         );
                         const querySnapshot = await getDocs(q);
 
                         if (!querySnapshot.empty) {
-                            // Se achou o documento, já abre o contato automaticamente!
                             setMostrarLead(true);
                         }
                     }
@@ -97,16 +101,17 @@ export default function DetalhesOportunidadePage() {
         buscarDetalhes();
     }, [demandaId, user]);
 
-    // NOVA LÓGICA: Libera o contato, registra no banco e AVANÇA O KANBAN
     const handleLiberarContato = async () => {
+        // 3. TRAVA DE SEGURANÇA: O TypeScript agora sabe que a demanda existe daqui para baixo!
+        if (!demanda || !user) return;
+
         setDesbloqueandoLead(true);
         try {
-            // 1. Registramos a "proposta/lead" no banco para histórico
             await addDoc(collection(db, "propostas"), {
                 demandaId: demanda.id,
-                fornecedorId: user?.uid,
-                nomeFornecedor: user?.razaoSocial || user?.nome || "Fornecedor",
-                telefoneFornecedor: user?.telefone || "",
+                fornecedorId: user.id,
+                nomeFornecedor: user.razaoSocial || user.nome || "Fornecedor",
+                telefoneFornecedor: user.telefone || "",
                 valor: "A combinar",
                 prazo: "A combinar",
                 mensagem: "Lead desbloqueado via plataforma",
@@ -114,8 +119,6 @@ export default function DetalhesOportunidadePage() {
                 dataCriacao: new Date().toISOString()
             });
 
-            // 2. O GATILHO DO KANBAN: Muda a demanda para "Em Negociação"
-            // Se ela estava aberta e alguém pegou, ela evolui!
             if (demanda.status === "aberta") {
                 const docRef = doc(db, "demandas", demanda.id);
                 await updateDoc(docRef, {
@@ -123,7 +126,6 @@ export default function DetalhesOportunidadePage() {
                 });
             }
 
-            // Mostra o WhatsApp do cliente na tela
             setMostrarLead(true);
         } catch (error) {
             console.error("Erro ao liberar contato:", error);
@@ -220,14 +222,12 @@ export default function DetalhesOportunidadePage() {
                             <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.05)] p-8 md:p-10 transition-all duration-500 ease-in-out">
                                 {!mostrarLead ? (
                                     <div className="flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
-
-                                        {/* AVISO DE LIMITE DE LEADS */}
                                         <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3 mb-6 max-w-md w-full">
                                             <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                                             <div>
                                                 <p className="text-sm text-blue-800 font-bold mb-1">Atenção ao seu Limite</p>
                                                 <p className="text-xs text-blue-700">
-                                                    Você possui um limite total de <strong>{/*limiteLeadsTotal*/} leads</strong>. Liberar este contato consumirá 1 lead da sua cota.
+                                                    Você possui um limite total de <strong>{user?.saldoLeads || 100} leads</strong>. Liberar este contato consumirá 1 lead da sua cota.
                                                 </p>
                                             </div>
                                         </div>
@@ -242,8 +242,6 @@ export default function DetalhesOportunidadePage() {
                                     </div>
                                 ) : (
                                     <div className="animate-in slide-in-from-bottom-4 fade-in duration-500 space-y-8">
-
-                                        {/* Cabeçalho do Match */}
                                         <div className="flex items-center gap-3 border-b border-gray-100 pb-6">
                                             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center shrink-0">
                                                 <span className="text-2xl">✅</span>
@@ -254,7 +252,6 @@ export default function DetalhesOportunidadePage() {
                                             </div>
                                         </div>
 
-                                        {/* Box do Lead */}
                                         <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 grid grid-cols-1 md:grid-cols-2 gap-6 relative overflow-hidden">
                                             <div>
                                                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Comprador</span>
@@ -273,7 +270,6 @@ export default function DetalhesOportunidadePage() {
                                             </div>
                                         </div>
 
-                                        {/* O FORMULÁRIO COMPLETO ESTÁ AQUI, MAS ESCONDIDO! */}
                                         <div style={{ display: 'none' }}>
                                             <form className="bg-white border-2 border-gray-100 rounded-xl p-6 space-y-6">
                                                 <div>
@@ -296,7 +292,6 @@ export default function DetalhesOportunidadePage() {
                                                 </div>
                                             </form>
                                         </div>
-
                                     </div>
                                 )}
                             </div>
