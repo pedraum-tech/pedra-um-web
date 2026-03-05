@@ -1,4 +1,5 @@
 import { User, MapPin } from "lucide-react";
+import Link from "next/link"; // Importando o Link do Next.js
 
 // 1. Definição exata dos seus status e sub-status
 export type CardStatus =
@@ -11,18 +12,20 @@ export type CardStatus =
     | 'fechada_s_mat';  // Coluna 4 (Amarelo): Sem match encontrado
 
 interface AdminCardProps {
-    id: string;
+    id: string; // O ID bonito (ex: PRT-123)
+    demandaIdReal: string; // NOVO: O ID feio do Firebase para a URL
     data: string;
     titulo: string;
     cliente: string;
     uf: string;
-    urgencia?: 'Normal' | 'Urgente'; // Opcional
-    status: CardStatus;
-    stats?: { enviados: number; respostas: number }; // Só usado na 'negociacao'
+    urgencia?: 'Normal' | 'Urgente' | 'crítico'; // Ajustado para aceitar minúsculo também, do banco
+    status: CardStatus | string; // Aceita string caso o banco mande algo diferente
+    stats?: { enviados: number; respostas: number };
 }
 
 export function AdminCard({
     id,
+    demandaIdReal,
     data,
     titulo,
     cliente,
@@ -36,20 +39,20 @@ export function AdminCard({
     const getVisualConfig = () => {
         switch (status) {
             case 'fechada_match':
-                return { borderColor: '#10B981', label: 'MATCH REALIZADO', dotColor: '#10B981', bgColor: '#ECFDF5' }; // Verde
+                return { borderColor: '#10B981', label: 'MATCH REALIZADO', dotColor: '#10B981', bgColor: '#ECFDF5' };
             case 'fechada_fora':
-                return { borderColor: '#FF9900', label: 'COMPROU FORA', dotColor: '#FF9900', bgColor: '#FFF7ED' }; // Laranja
+                return { borderColor: '#FF9900', label: 'COMPROU FORA', dotColor: '#FF9900', bgColor: '#FFF7ED' };
             case 'fechada_s_ret':
-                return { borderColor: '#EF4444', label: 'SEM RETORNO', dotColor: '#EF4444', bgColor: '#FEF2F2' }; // Vermelho
+                return { borderColor: '#EF4444', label: 'SEM RETORNO', dotColor: '#EF4444', bgColor: '#FEF2F2' };
             case 'fechada_s_mat':
-                return { borderColor: '#F6FF00', label: 'SEM MATCH', dotColor: '#F6FF00', bgColor: '#FEFCE8' }; // Amarelo
+                return { borderColor: '#F6FF00', label: 'SEM MATCH', dotColor: '#F6FF00', bgColor: '#FEFCE8' };
             default:
-                return { borderColor: '#E2E8F0', label: '', dotColor: '', bgColor: 'white' }; // Padrão (Cinza)
+                return { borderColor: '#E2E8F0', label: '', dotColor: '', bgColor: 'white' };
         }
     };
 
     const config = getVisualConfig();
-    const isClosed = status.startsWith('fechada');
+    const isClosed = status.toString().startsWith('fechada') || status === 'resolvida'; // Ajuste p/ banco
 
     // 3. Renderização do Rodapé (Ações)
     const renderFooter = () => {
@@ -59,8 +62,8 @@ export function AdminCard({
                     className="mt-3 w-full py-2 rounded-md flex items-center justify-center gap-2 font-bold text-[10px] uppercase tracking-wide border border-transparent"
                     style={{ backgroundColor: config.bgColor, color: config.dotColor, borderColor: config.borderColor }}
                 >
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: config.dotColor }} />
-                    {config.label}
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: config.dotColor || '#9ca3af' }} />
+                    {config.label || 'RESOLVIDA'}
                 </div>
             );
         }
@@ -69,9 +72,11 @@ export function AdminCard({
             case 'curadoria':
                 return (
                     <div className="mt-3 flex gap-2">
-                        <button className="flex-1 border border-gray-200 text-gray-500 hover:bg-gray-50 py-1.5 rounded text-xs font-bold uppercase transition-colors">
-                            Ver
-                        </button>
+                        <Link href={`/admin/demandas/${demandaIdReal}`} className="flex-1">
+                            <button className="w-full border border-gray-200 text-gray-500 hover:bg-gray-50 py-1.5 rounded text-xs font-bold uppercase transition-colors">
+                                Ver
+                            </button>
+                        </Link>
                         <button className="flex-1 bg-pedraum-orange text-white hover:bg-orange-600 py-1.5 rounded text-xs font-bold uppercase transition-colors shadow-sm">
                             Aprovar
                         </button>
@@ -80,9 +85,11 @@ export function AdminCard({
             case 'aberta':
                 return (
                     <div className="mt-3 flex gap-2">
-                        <button className="flex-1 border border-orange-200 text-orange-500 hover:bg-orange-50 py-1.5 rounded text-xs font-bold uppercase transition-colors">
-                            Editar
-                        </button>
+                        <Link href={`/admin/demandas/${demandaIdReal}`} className="flex-1">
+                            <button className="w-full border border-orange-200 text-orange-500 hover:bg-orange-50 py-1.5 rounded text-xs font-bold uppercase transition-colors">
+                                Editar
+                            </button>
+                        </Link>
                         <button className="flex-1 bg-pedraum-dark text-white hover:bg-slate-800 py-1.5 rounded text-xs font-bold uppercase transition-colors shadow-sm">
                             Match
                         </button>
@@ -108,7 +115,7 @@ export function AdminCard({
     return (
         <div
             className="bg-white rounded-xl p-4 shadow-sm border-l-4 w-full transition-shadow hover:shadow-md"
-            style={{ borderLeftColor: isClosed ? config.borderColor : '#E2E8F0' }}
+            style={{ borderLeftColor: isClosed ? (config.borderColor || '#E2E8F0') : '#E2E8F0' }}
         >
             {/* Cabeçalho */}
             <div className="flex justify-between items-start mb-2">
@@ -135,9 +142,9 @@ export function AdminCard({
                     <MapPin className="w-2.5 h-2.5" /> {uf}
                 </span>
 
-                {urgencia === 'Urgente' && (
+                {(urgencia === 'Urgente' || urgencia === 'urgente' || urgencia === 'critico') && (
                     <span className="px-1.5 py-0.5 rounded bg-red-50 text-[10px] font-bold text-red-500 uppercase border border-red-100">
-                        🚨 Urgente
+                        {urgencia === 'critico' ? '🚨 Crítico' : '🚨 Urgente'}
                     </span>
                 )}
             </div>
