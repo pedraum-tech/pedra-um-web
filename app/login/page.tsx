@@ -8,9 +8,10 @@ import Link from "next/link";
 
 // 2. Importações do Firebase
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/src/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/src/lib/firebase";
+
 import { TipoCadastroModal } from "@/src/components/TipoCadastroModal";
-// Lembre-se de verificar se o caminho da pasta lib está correto!
 
 export default function LoginPage() {
     // 3. Estados para guardar o que o usuário digita e controlar a tela
@@ -24,20 +25,35 @@ export default function LoginPage() {
 
     // 4. A função que conversa com o Google/Firebase
     const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault(); // Impede a página de recarregar
-        setErro(""); // Limpa erros antigos
-        setCarregando(true); // Ativa o botão de "carregando"
+        e.preventDefault();
+        setCarregando(true);
 
         try {
-            // A mágica acontece aqui: tenta logar com os dados
-            await signInWithEmailAndPassword(auth, email, password);
+            // 1. Faz o login no Firebase Auth
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
-            // Se deu certo, manda para o painel
-            router.push("/comprador/");
-        } catch (error: unknown) {
-            // Se deu erro (senha errada, usuário não existe), avisa o usuário
-            console.error("Erro na autenticação:", error);
-            setErro("E-mail ou senha inválidos. Verifique seus dados e tente novamente.");
+            // 2. Busca o documento do usuário para descobrir O QUE ele é
+            const userDoc = await getDoc(doc(db, "usuarios", userCredential.user.uid));
+
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+
+                // 3. O GUARDA DE TRÂNSITO: Redireciona com base no ROLE
+                if (userData.tipo_usuario === "admin") {
+                    router.push("/admin/dashboard");
+                } else if (userData.tipo_usuario === "fornecedor") {
+                    router.push("/fornecedor");
+                } else {
+                    router.push("/comprador"); // Padrão
+                }
+            } else {
+                // Se por acaso não achar o documento, manda pro padrão
+                router.push("/comprador");
+            }
+
+        } catch (error) {
+            console.error("Erro no login:", error);
+            alert("E-mail ou senha incorretos.");
         } finally {
             setCarregando(false);
         }
