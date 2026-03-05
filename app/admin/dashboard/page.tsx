@@ -1,7 +1,98 @@
-import { AdminCard } from "@/src/components/admin/AdminCard";
+"use client";
 
+import { useEffect, useState } from "react";
+import { AdminCard } from "@/src/components/admin/AdminCard";
+import { collection, query, onSnapshot, where, getDocs } from "firebase/firestore";
+import { db } from "@/src/lib/firebase";
+import { Loader2 } from "lucide-react";
 
 export default function DashboardPage() {
+    // Estados para as Demandas
+    const [demandas, setDemandas] = useState<any[]>([]);
+    const [carregando, setCarregando] = useState(true);
+
+    // Estados para as Métricas
+    const [metricas, setMetricas] = useState({
+        novasSemana: 0,
+        matchsSemana: 0,
+        fornecedoresAtivos: 0,
+        taxaConversao: 0
+    });
+
+    useEffect(() => {
+        // 1. OUVINTE DE DEMANDAS (Tempo Real)
+        const qDemandas = query(collection(db, "demandas"));
+
+        const unsubscribeDemandas = onSnapshot(qDemandas, (snapshot) => {
+            const demandasData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            // Ordenar por data mais recente
+            demandasData.sort((a, b) => new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime());
+
+            setDemandas(demandasData);
+            calcularMetricas(demandasData);
+            setCarregando(false);
+        });
+
+        // 2. FUNÇÃO PARA CALCULAR MÉTRICAS DOS ÚLTIMOS 7 DIAS
+        const calcularMetricas = async (todasDemandas: any[]) => {
+            const seteDiasAtras = new Date();
+            seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
+
+            // Filtra demandas criadas nos últimos 7 dias
+            const demandasRecentes = todasDemandas.filter(d => new Date(d.dataCriacao) >= seteDiasAtras);
+
+            const novasSemana = demandasRecentes.length;
+
+            // Conta quantos matchs (resolvidas) houveram nos últimos 7 dias
+            const matchsSemana = todasDemandas.filter(d =>
+                d.status === "resolvida" &&
+                d.dataFechamento &&
+                new Date(d.dataFechamento) >= seteDiasAtras
+            ).length;
+
+            let taxaConversao = 0;
+            if (novasSemana > 0) {
+                taxaConversao = Math.round((matchsSemana / novasSemana) * 100);
+            }
+
+            // Conta fornecedores na coleção usuários (que tenham role fornecedor)
+            let qtdFornecedores = 0;
+            try {
+                const qFornecedores = query(collection(db, "usuarios"), where("role", "==", "fornecedor"));
+                const snapFornecedores = await getDocs(qFornecedores);
+                qtdFornecedores = snapFornecedores.size;
+            } catch (error) {
+                console.error("Erro ao contar fornecedores:", error);
+            }
+
+            setMetricas({
+                novasSemana,
+                matchsSemana,
+                fornecedoresAtivos: qtdFornecedores, // Usando total de cadastrados como placeholder para "Online"
+                taxaConversao
+            });
+        };
+
+        return () => unsubscribeDemandas();
+    }, []);
+
+    // 3. SEPARANDO AS DEMANDAS NAS COLUNAS
+    // Para adaptar aos status que já criamos:
+    // Em Análise -> Poderia ser demandas pendentes de curadoria (como tudo entra como "aberta" agora, vamos deixar vazia por enquanto ou criar lógica específica).
+    // Novas -> Demandas "aberta"
+    // Em Negociação -> Demandas "aberta" que já tem pelo menos 1 proposta/contato liberado (precisaria cruzar com a tabela de propostas, vamos simplificar por hora)
+    // Concluídas -> Demandas "resolvida"
+
+    // SEPARANDO AS DEMANDAS NAS COLUNAS OFICIAIS DO FLUXO
+    const demandasCuradoria = demandas.filter(d => d.status === "curadoria");
+    const demandasAbertas = demandas.filter(d => d.status === "aberta");
+    const demandasNegociacao = demandas.filter(d => d.status === "negociacao");
+    const demandasConcluidas = demandas.filter(d => d.status === "resolvida" || d.status.startsWith("fechada"));
+
     return (
         <div className="min-h-screen bg-gray-50/50 p-8">
 
@@ -14,109 +105,111 @@ export default function DashboardPage() {
 
             {/* 2. Cards de Métricas (Topo) */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-                {/* Card 1 */}
                 <div className="bg-[#D9D9D9] p-6 rounded-lg text-center shadow-sm">
                     <h3 className="text-lg font-medium text-gray-800 mb-2">Demandas Novas</h3>
-                    <p className="text-4xl font-normal text-gray-900">12</p>
+                    <p className="text-4xl font-normal text-gray-900">{carregando ? "..." : metricas.novasSemana}</p>
                 </div>
-
-                {/* Card 2 */}
                 <div className="bg-[#D9D9D9] p-6 rounded-lg text-center shadow-sm">
                     <h3 className="text-lg font-medium text-gray-800 mb-2">Matchs</h3>
-                    <p className="text-4xl font-normal text-gray-900">8</p>
+                    <p className="text-4xl font-normal text-gray-900">{carregando ? "..." : metricas.matchsSemana}</p>
                 </div>
-
-                {/* Card 3 */}
                 <div className="bg-[#D9D9D9] p-6 rounded-lg text-center shadow-sm">
                     <h3 className="text-lg font-medium text-gray-800 leading-tight mb-2">
-                        Fornecedores <br /> Online
+                        Fornecedores <br /> Cadastrados
                     </h3>
-                    <p className="text-4xl font-normal text-gray-900">24</p>
+                    <p className="text-4xl font-normal text-gray-900">{carregando ? "..." : metricas.fornecedoresAtivos}</p>
                 </div>
-
-                {/* Card 4 */}
                 <div className="bg-[#D9D9D9] p-6 rounded-lg text-center shadow-sm">
                     <h3 className="text-lg font-medium text-gray-800 leading-tight mb-2">
                         Taxa de <br /> Conversão
                     </h3>
-                    <p className="text-4xl font-normal text-gray-900">42%</p>
+                    <p className="text-4xl font-normal text-gray-900">{carregando ? "..." : `${metricas.taxaConversao}%`}</p>
                 </div>
             </div>
 
-            {/* 3. O Kanban (Grid Principal) */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start h-full">
-
-                {/* Coluna 1: Em Análise */}
-                <div className="flex flex-col gap-4">
-                    <h2 className="text-xl font-bold text-black mb-2">Em Análise</h2>
-                    <AdminCard
-                        id="#203"
-                        data="09/02"
-                        titulo="Brita 20mm p/ Concretagem"
-                        cliente="Construtora Real"
-                        uf="UF"
-                        urgencia="Normal"
-                        status="curadoria"
-                    />
+            {carregando ? (
+                <div className="flex justify-center items-center h-64">
+                    <Loader2 className="w-12 h-12 text-pedraum-orange animate-spin" />
                 </div>
+            ) : (
+                /* 3. O Kanban (Grid Principal) */
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start h-full">
 
-                {/* Coluna 2: Novas */}
-                <div className="flex flex-col gap-4">
-                    <h2 className="text-xl font-bold text-black mb-2">Novas</h2>
-                    <AdminCard
-                        id="#203"
-                        data="09/02"
-                        titulo="Brita 20mm p/ Concretagem"
-                        cliente="Construtora Real"
-                        uf="UF"
-                        urgencia="Normal"
-                        status="aberta"
-                    />
+                    {/* Coluna 1: Em Análise (Curadoria) */}
+                    <div className="flex flex-col gap-4">
+                        <h2 className="text-xl font-bold text-black mb-2">Em Análise ({demandasCuradoria.length})</h2>
+                        {demandasCuradoria.map(demanda => (
+                            <AdminCard
+                                key={demanda.id}
+                                id={demanda.protocolo || `#${demanda.id.substring(0, 5).toUpperCase()}`}
+                                demandaIdReal={demanda.id}
+                                data={new Date(demanda.dataCriacao).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                titulo={demanda.descricao.substring(0, 30) + '...'}
+                                cliente={demanda.nomeComprador}
+                                uf={demanda.uf || "MG"}
+                                urgencia={demanda.urgencia}
+                                status={demanda.status}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Coluna 2: Novas (Abertas pro mercado) */}
+                    <div className="flex flex-col gap-4">
+                        <h2 className="text-xl font-bold text-black mb-2">Novas ({demandasAbertas.length})</h2>
+                        {demandasAbertas.map(demanda => (
+                            <AdminCard
+                                key={demanda.id}
+                                id={demanda.protocolo || `#${demanda.id.substring(0, 5).toUpperCase()}`}
+                                demandaIdReal={demanda.id}
+                                data={new Date(demanda.dataCriacao).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                titulo={demanda.descricao.substring(0, 30) + '...'}
+                                cliente={demanda.nomeComprador}
+                                uf={demanda.uf || "MG"}
+                                urgencia={demanda.urgencia}
+                                status={demanda.status}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Coluna 3: Em Negociação */}
+                    <div className="flex flex-col gap-4">
+                        <h2 className="text-xl font-bold text-black mb-2">Em Negociação ({demandasNegociacao.length})</h2>
+                        {demandasNegociacao.map(demanda => (
+                            <AdminCard
+                                key={demanda.id}
+                                id={demanda.protocolo || `#${demanda.id.substring(0, 5).toUpperCase()}`}
+                                demandaIdReal={demanda.id}
+                                data={new Date(demanda.dataCriacao).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                titulo={demanda.descricao.substring(0, 30) + '...'}
+                                cliente={demanda.nomeComprador}
+                                uf={demanda.uf || "MG"}
+                                urgencia={demanda.urgencia}
+                                status={demanda.status}
+                                stats={{ enviados: 1, respostas: 1 }} // Mockado por enquanto para o visual
+                            />
+                        ))}
+                    </div>
+
+                    {/* Coluna 4: Concluídas */}
+                    <div className="flex flex-col gap-4">
+                        <h2 className="text-xl font-bold text-black mb-2">Concluídas ({demandasConcluidas.length})</h2>
+                        {demandasConcluidas.map(demanda => (
+                            <AdminCard
+                                key={demanda.id}
+                                id={demanda.protocolo || `#${demanda.id.substring(0, 5).toUpperCase()}`}
+                                demandaIdReal={demanda.id}
+                                data={new Date(demanda.dataFechamento || demanda.dataCriacao).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                titulo={demanda.descricao.substring(0, 30) + '...'}
+                                cliente={demanda.nomeComprador}
+                                uf={demanda.uf || "MG"}
+                                urgencia={demanda.urgencia}
+                                status={demanda.motivoFechamento === 'na_plataforma' ? 'fechada_match' : 'fechada_s_ret'}
+                            />
+                        ))}
+                    </div>
+
                 </div>
-
-                {/* Coluna 3: Em Negociação */}
-                <div className="flex flex-col gap-4">
-                    <h2 className="text-xl font-bold text-black mb-2">Em Negociação</h2>
-                    <AdminCard
-                        id="#203"
-                        data="09/02"
-                        titulo="Brita 20mm p/ Concretagem"
-                        cliente="Construtora Real"
-                        uf="UF"
-                        urgencia="Normal"
-                        status="negociacao"
-                        stats={{ enviados: 5, respostas: 2 }}
-                    />
-                </div>
-
-                {/* Coluna 4: Concluídas */}
-                <div className="flex flex-col gap-4">
-                    <h2 className="text-xl font-bold text-black mb-2">Concluídas</h2>
-
-                    {/* Card Fechado com Sucesso */}
-                    <AdminCard
-                        id="#203"
-                        data="09/02"
-                        titulo="Brita 20mm p/ Concretagem"
-                        cliente="Construtora Real"
-                        uf="UF"
-                        urgencia="Normal"
-                        status="fechada_match"
-                    />
-
-                    {/* Card Sem Retorno */}
-                    <AdminCard
-                        id="#203"
-                        data="09/02"
-                        titulo="Brita 20mm p/ Concretagem"
-                        cliente="Construtora Real"
-                        uf="UF"
-                        urgencia="Normal"
-                        status="fechada_s_ret"
-                    />
-                </div>
-
-            </div>
+            )}
         </div>
     );
 }
