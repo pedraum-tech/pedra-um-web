@@ -5,12 +5,13 @@ import Link from "next/link";
 import { Header } from "@/src/components/Header";
 import { ProtectedRoute } from "@/src/components/ProtectedRoute";
 import { useAuth } from "@/src/contexts/AuthContext";
+import { AnexosDemanda } from "@/src/components/AnexosDemanda";
+import { DemandaModel } from "@/src/types";
+import { criarNovaDemandaCentralizada } from "@/src/services/demandaService";
 
 // Ferramentas do Firebase
-import { collection, addDoc, query, where, onSnapshot, doc, setDoc } from "firebase/firestore";
-import { db, storage } from "@/src/lib/firebase";
-import { AnexosDemanda } from "@/src/components/AnexosDemanda";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "@/src/lib/firebase";
 
 export default function DemandasCompradorPage() {
     const { user } = useAuth();
@@ -24,7 +25,7 @@ export default function DemandasCompradorPage() {
     const [mensagem, setMensagem] = useState({ texto: "", tipo: "" });
 
     // Estado para guardar a lista de demandas do banco
-    const [minhasDemandas, setMinhasDemandas] = useState<any[]>([]);
+    const [minhasDemandas, setMinhasDemandas] = useState<DemandaModel[]>([]);
     const [carregandoDemandas, setCarregandoDemandas] = useState(true);
 
     const [imagensDemanda, setImagensDemanda] = useState<File[]>([]);
@@ -45,7 +46,7 @@ export default function DemandasCompradorPage() {
             const listaDemandas = querySnapshot.docs.map(doc => ({
                 id: doc.id, // O ID único do documento gerado pelo Firebase
                 ...doc.data()
-            }));
+            })) as DemandaModel[];
 
             // Ordenando no JavaScript (Mais novo primeiro) para evitar problemas de Index no Firebase
             listaDemandas.sort((a, b) => new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime());
@@ -56,7 +57,7 @@ export default function DemandasCompradorPage() {
 
         // Limpa o "ouvinte" quando a pessoa sai da página (boa prática de React)
         return () => unsubscribe();
-    }, [user?.uid]);
+    }, [user]);
 
     // Função de Criar Demanda
     const handleCriarDemanda = async (e: React.FormEvent) => {
@@ -96,7 +97,7 @@ export default function DemandasCompradorPage() {
             return <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold uppercase">Aberta</span>;
         }
         if (tipo === 'urgencia') {
-            const cores: any = {
+            const cores: { [key: string]: string } = {
                 normal: "bg-gray-100 text-gray-700",
                 urgente: "bg-orange-100 text-pedraum-orange",
                 critico: "bg-red-100 text-red-700"
@@ -144,7 +145,7 @@ export default function DemandasCompradorPage() {
                                     required
                                     value={descricao}
                                     onChange={(e) => setDescricao(e.target.value)}
-                                    className="w-full min-h-[140px] p-4 rounded-lg border border-gray-200 focus:border-pedraum-orange focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-y text-gray-700 placeholder:text-gray-400"
+                                    className="w-full min-h-35 p-4 rounded-lg border border-gray-200 focus:border-pedraum-orange focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-y text-gray-700 placeholder:text-gray-400"
                                     placeholder="Dica: Especifique quantidade, especificações técnicas, prazos, localização."
                                     maxLength={500}
                                 ></textarea>
@@ -196,7 +197,7 @@ export default function DemandasCompradorPage() {
                                 <button
                                     type="submit"
                                     disabled={carregando}
-                                    className="bg-pedraum-orange hover:bg-orange-600 text-white font-bold py-3 px-10 rounded-lg transition-colors shadow-md shadow-orange-500/20 text-lg disabled:opacity-70 flex items-center justify-center min-w-[240px]"
+                                    className="bg-pedraum-orange hover:bg-orange-600 text-white font-bold py-3 px-10 rounded-lg transition-colors shadow-md shadow-orange-500/20 text-lg disabled:opacity-70 flex items-center justify-center min-w-60"
                                 >
                                     {carregando ? (
                                         <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -225,7 +226,7 @@ export default function DemandasCompradorPage() {
                                     Você ainda não tem nenhuma demanda cadastrada.
                                 </div>
                             ) : (
-                                <table className="w-full min-w-[600px] text-left border-collapse">
+                                <table className="w-full min-w-150 text-left border-collapse">
                                     <thead>
                                         <tr className="bg-gray-100 border-b border-gray-300">
                                             <th className="py-4 px-4 font-bold text-gray-800 rounded-tl-lg">Status</th>
