@@ -6,7 +6,7 @@ export interface UsuarioModel {
     razaoSocial?: string;
     email: string;
     telefone?: string;
-    role: UserRole;
+    tipo_usuario: UserRole;
     cnpj?: string;
     cpf?: string;
     saldoLeads?: number;
