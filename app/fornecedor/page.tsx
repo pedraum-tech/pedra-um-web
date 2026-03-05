@@ -18,36 +18,43 @@ export default function OportunidadesPage() {
     const [demandas, setDemandas] = useState<any[]>([]);
     const [carregando, setCarregando] = useState(true);
 
-    // 2. Busca em Tempo Real no Banco de Dados
+    // 2. Busca em Tempo Real no Banco de Dados (COM BARREIRA DE INVISIBILIDADE)
     useEffect(() => {
-        // Criamos a regra: "Traga todas as demandas da coleção, ONDE status for igual a aberta"
+        if (!user?.uid) return; // Segurança extra: só roda se o fornecedor estiver logado
+
+        // A MÁGICA ACONTECE AQUI:
+        // "Traga as demandas onde o array 'fornecedoresSelecionados' contenha o MEU UID"
         const q = query(
             collection(db, "demandas"),
-            where("status", "==", "aberta")
+            where("fornecedoresSelecionados", "array-contains", user.uid)
         );
 
-        // onSnapshot fica "escutando" o banco. Qualquer mudança, ele atualiza a tela na hora.
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const demandasBuscadas = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
 
+            // Filtro duplo no JavaScript para garantir que ele só veja o que deve
+            // (Ele pode ver se está aberta ou se já está em negociação, mas não vê as fechadas)
+            const demandasFiltradas = demandasBuscadas.filter(d =>
+                d.status === "aberta" || d.status === "negociacao"
+            );
+
             // Ordena via JavaScript para mostrar as mais recentes primeiro
-            demandasBuscadas.sort((a, b) =>
+            demandasFiltradas.sort((a, b) =>
                 new Date(b.dataCriacao).getTime() - new Date(a.dataCriacao).getTime()
             );
 
-            setDemandas(demandasBuscadas);
+            setDemandas(demandasFiltradas);
             setCarregando(false);
         }, (error) => {
             console.error("Erro ao escutar demandas:", error);
             setCarregando(false);
         });
 
-        // Quando o usuário sair da página, a gente desliga o "escutador" para economizar internet
         return () => unsubscribe();
-    }, []);
+    }, [user?.uid]); // Adiciona o user.uid nas dependências para recarregar se o login mudar
 
     return (
         <ProtectedRoute allowedRoles={["fornecedor"]}>
@@ -124,13 +131,11 @@ export default function OportunidadesPage() {
                             {demandas.map((demanda) => (
                                 <OportunidadeCard
                                     key={demanda.id}
-                                    // Passamos o protocolo (se for visitante) ou um pedaço do ID para ficar bonito
-                                    id={demanda.protocolo || `#${demanda.id.substring(0, 5).toUpperCase()}`}
-                                    // Usamos o nome do comprador como título por enquanto
+                                    id={demanda.id} // Passa o ID real para o Firebase conseguir buscar
+                                    displayId={demanda.protocolo || `#${demanda.id.substring(0, 5).toUpperCase()}`} // Passa o ID bonito para a tela
                                     titulo={demanda.nomeComprador}
                                     descricao={demanda.descricao}
-                                    categoria="Geral" // Categoria fixa até implementarmos isso no formulário
-                                    // Passamos a urgência no lugar do status para o fornecedor ver o peso
+                                    categoria="Geral"
                                     status={demanda.urgencia}
                                 />
                             ))}
