@@ -11,6 +11,7 @@ import { Step2Detalhes } from "./components/Step2Detalhes";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/src/lib/firebase";
+import { criarNovaDemandaCentralizada } from "@/src/services/demandaService";
 
 export interface DemandaFormData {
     nome: string;
@@ -53,58 +54,25 @@ export default function NovaDemandaWizard() {
 
     const finalizarCadastro = async () => {
         setSalvando(true);
-
         try {
-            // 1. Pré-gerar a referência e o ID
-            const novaDemandaRef = doc(collection(db, "demandas"));
-            const demandaId = novaDemandaRef.id;
-
-            // 2. Gerar Número de Protocolo (Ex: PRT-847291)
-            const numeroProtocolo = "PRT-" + Math.floor(100000 + Math.random() * 900000);
-            setProtocoloGerado(numeroProtocolo);
-
-            const urlsFotos: string[] = [];
-            let urlPdf: string | null = null;
-
-            // 3. Upload das Imagens (Pasta de visitantes)
-            if (imagensDemanda.length > 0) {
-                const uploadPromises = imagensDemanda.map(async (imagem) => {
-                    const imageRef = ref(storage, `visitantes/demandas/${demandaId}/fotos/${Date.now()}_${imagem.name}`);
-                    await uploadBytes(imageRef, imagem);
-                    return await getDownloadURL(imageRef);
-                });
-                const urlsResolvidas = await Promise.all(uploadPromises);
-                urlsFotos.push(...urlsResolvidas);
-            }
-
-            // 4. Upload do PDF
-            if (pdfDemanda) {
-                const pdfRef = ref(storage, `visitantes/demandas/${demandaId}/documentos/${Date.now()}_${pdfDemanda.name}`);
-                await uploadBytes(pdfRef, pdfDemanda);
-                urlPdf = await getDownloadURL(pdfRef);
-            }
-
-            // 5. Salvar no Firestore
-            await setDoc(novaDemandaRef, {
+            const resultado = await criarNovaDemandaCentralizada({
                 compradorId: "visitante",
                 nomeComprador: formData.nome,
                 telefoneContato: formData.telefone,
                 descricao: formData.descricao,
                 urgencia: formData.urgencia,
                 termosAceitos: formData.termosAceitos,
-                status: "aberta",
                 isGuest: true,
-                protocolo: numeroProtocolo, // Salvando o protocolo no banco
-                fotos: urlsFotos,
-                documentoPdf: urlPdf,
-                dataCriacao: new Date().toISOString(),
+                imagens: imagensDemanda,
+                pdf: pdfDemanda
             });
 
+            setProtocoloGerado(resultado.protocolo); // Pega o retorno do service!
             setEnviado(true);
             sessionStorage.removeItem("demandaPendente");
         } catch (error) {
-            console.error("Erro ao salvar demanda de visitante:", error);
-            alert("Ocorreu um erro ao enviar sua demanda. Verifique a conexão e tente novamente.");
+            console.error("Erro:", error);
+            alert("Ocorreu um erro ao enviar.");
         } finally {
             setSalvando(false);
         }
