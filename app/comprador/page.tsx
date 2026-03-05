@@ -61,67 +61,30 @@ export default function DemandasCompradorPage() {
     // Função de Criar Demanda
     const handleCriarDemanda = async (e: React.FormEvent) => {
         e.preventDefault();
-        setMensagem({ texto: "", tipo: "" });
-
-        if (descricao.trim().length < 10) {
-            return setMensagem({ texto: "A descrição precisa ter pelo menos 10 caracteres.", tipo: "erro" });
-        }
-
+        if (descricao.trim().length < 10) return;
         setCarregando(true);
 
         try {
-            // A MÁGICA: Pré-gerar a referência e o ID da nova demanda
-            const novaDemandaRef = doc(collection(db, "demandas"));
-            const demandaId = novaDemandaRef.id; // Pegamos o ID gerado!
-
-            const urlsFotos: string[] = [];
-            let urlPdf: string | null = null;
-
-            // Upload das Imagens (Agora usando o seu caminho perfeito)
-            if (imagensDemanda.length > 0) {
-                const uploadPromises = imagensDemanda.map(async (imagem) => {
-                    // Arquitetura: {UID}/demandas/{DEMANDA_ID}/fotos/arquivo.jpg
-                    const imageRef = ref(storage, `${user?.uid}/demandas/${demandaId}/fotos/${Date.now()}_${imagem.name}`);
-                    await uploadBytes(imageRef, imagem);
-                    return await getDownloadURL(imageRef);
-                });
-
-                const urlsResolvidas = await Promise.all(uploadPromises);
-                urlsFotos.push(...urlsResolvidas);
-            }
-
-            // Upload do PDF
-            if (pdfDemanda) {
-                // Arquitetura: {UID}/demandas/{DEMANDA_ID}/documentos/arquivo.pdf
-                const pdfRef = ref(storage, `${user?.uid}/demandas/${demandaId}/documentos/${Date.now()}_${pdfDemanda.name}`);
-                await uploadBytes(pdfRef, pdfDemanda);
-                urlPdf = await getDownloadURL(pdfRef);
-            }
-
-            // Salvar no banco usando o setDoc no ID que já reservamos
-            await setDoc(novaDemandaRef, {
-                compradorId: user?.uid,
+            await criarNovaDemandaCentralizada({
+                compradorId: user?.uid as string,
                 nomeComprador: user?.razaoSocial || user?.nome || "Comprador",
                 descricao: descricao,
                 urgencia: urgencia,
-                status: "aberta",
-                fotos: urlsFotos,
-                documentoPdf: urlPdf,
-                dataCriacao: new Date().toISOString(),
+                isGuest: false,
+                imagens: imagensDemanda,
+                pdf: pdfDemanda
             });
 
-            // Limpeza da tela
+            // Limpeza e Sucesso
             setDescricao("");
             setUrgencia("normal");
             setImagensDemanda([]);
             setPdfDemanda(null);
-
-            setMensagem({ texto: "Sua solicitação e anexos foram enviados para o mercado!", tipo: "sucesso" });
-            setTimeout(() => setMensagem({ texto: "", tipo: "" }), 5000);
+            setMensagem({ texto: "Sua solicitação foi enviada para curadoria!", tipo: "sucesso" });
 
         } catch (error) {
-            console.error("Erro ao criar demanda com anexos:", error);
-            setMensagem({ texto: "Erro ao cadastrar demanda. Verifique sua conexão e tente novamente.", tipo: "erro" });
+            console.error("Erro:", error);
+            setMensagem({ texto: "Erro ao cadastrar demanda.", tipo: "erro" });
         } finally {
             setCarregando(false);
         }
