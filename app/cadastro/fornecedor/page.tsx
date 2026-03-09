@@ -15,6 +15,7 @@ export interface FornecedorFormData {
     razaoSocial: string;
     cnpj: string;
     email: string;
+    telefone: string;
     senha: string;
     especialidades: string;
     regiao: string;
@@ -35,6 +36,7 @@ export default function CadastroFornecedorPage() {
         razaoSocial: "",
         cnpj: "",
         email: "",
+        telefone: "",
         senha: "",
         especialidades: "",
         regiao: "",
@@ -79,6 +81,7 @@ export default function CadastroFornecedorPage() {
                 razaoSocial: formData.razaoSocial,
                 cnpj: formData.cnpj,
                 email: formData.email,
+                telefone: formData.telefone,
                 especialidades: formData.especialidades,
                 regiao: formData.regiao,
                 categorias: formData.categorias,
@@ -86,7 +89,7 @@ export default function CadastroFornecedorPage() {
                 tipo_usuario: "fornecedor", // Crucial para o controle de acesso!
                 status_verificacao: "pendente", // Fornecedores geralmente passam por aprovação de CNPJ
                 data_cadastro: new Date().toISOString(),
-                status: "ativo"
+                status: "ativo", saldoLeads: 100,
             });
 
             // D) Redireciona para o painel do fornecedor
