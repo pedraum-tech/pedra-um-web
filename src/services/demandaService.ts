@@ -73,3 +73,38 @@ export async function criarNovaDemandaCentralizada(data: CriarDemandaProps) {
     // Retornamos os dados gerados caso a tela precise mostrar (como o protocolo)
     return { demandaId, protocolo: protocoloGerado };
 }
+
+/**
+ * Função utilitária para verificar se o usuário deixou uma demanda pendente
+ * na Home page (sessionStorage) antes de fazer login ou cadastro.
+ * Se existir, já salva automaticamente no banco usando a função principal e limpa a memória.
+ */
+export async function processarDemandaPendente(userId: string, nomeUsuario: string) {
+    // Tenta pegar o texto salvo lá da Home
+    const demandaSalva = sessionStorage.getItem("demandaPendente");
+
+    if (demandaSalva) {
+        try {
+            // Reaproveita a sua função monstruosa que já lida com o banco de dados!
+            await criarNovaDemandaCentralizada({
+                compradorId: userId,
+                nomeComprador: nomeUsuario,
+                descricao: demandaSalva,
+                urgencia: "normal",
+                isGuest: false,
+                imagens: [], // Veio da Home rápida, então não tem anexos ainda
+                pdf: null
+            });
+
+            // Limpa a memória para não duplicar a demanda se ele atualizar a página
+            sessionStorage.removeItem("demandaPendente");
+            return true; // Retorna true para a tela disparar o alert de sucesso
+
+        } catch (error) {
+            console.error("Erro ao processar demanda pendente:", error);
+            return false;
+        }
+    }
+
+    return false; // Não tinha demanda pendente, vida que segue
+}
