@@ -100,16 +100,23 @@ export default function EditarDemandaAdminPage() {
     };
 
     const handleSalvarAlteracoes = async () => {
+        // --- NOVA TRAVA DE SEGURANÇA ---
+        const novoStatus = (statusEdit === "curadoria" && fornecedoresSelecionados.length > 0)
+            ? "aberta"
+            : statusEdit;
+
+        // Se a demanda vai ficar "aberta", ELA PRECISA ter alguém selecionado!
+        if (novoStatus === "aberta" && fornecedoresSelecionados.length === 0) {
+            alert("⚠️ Atenção: Para deixar a demanda 'Aberta', você precisa selecionar pelo menos 1 fornecedor na Interface de Matchmaking!");
+            return; // Interrompe o salvamento
+        }
+        // ---------------------------------
+
         setSalvando(true);
         try {
             const docRef = doc(db, "demandas", demandaId);
 
-            const novoStatus = (statusEdit === "curadoria" && fornecedoresSelecionados.length > 0)
-                ? "aberta"
-                : statusEdit;
-
             await updateDoc(docRef, {
-                // Aqui salvamos os campos básicos no doc
                 descricao: descricaoEdit,
                 categoria: categoriaEdit,
                 uf: ufEdit,
