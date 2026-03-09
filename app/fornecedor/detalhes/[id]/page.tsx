@@ -8,7 +8,7 @@ import { ProtectedRoute } from "@/src/components/ProtectedRoute";
 import { useAuth } from "@/src/contexts/AuthContext";
 
 // Ferramentas e Ícones
-import { collection, doc, getDoc, addDoc, query, where, getDocs, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, addDoc, query, where, getDocs, updateDoc, increment } from "firebase/firestore";
 import { db } from "@/src/lib/firebase";
 import { Loader2, FileText, AlertCircle, Info } from "lucide-react";
 import { DemandaModel, UsuarioModel } from "@/src/types";
@@ -78,11 +78,12 @@ export default function DetalhesOportunidadePage() {
                     }
 
                     // A MÁGICA: Verifica se o fornecedor JÁ liberou esse contato antes!
-                    if (user?.id) {
+                    const userId = user?.id || (user as any)?.uid;
+                    if (userId) {
                         const q = query(
                             collection(db, "propostas"),
                             where("demandaId", "==", demandaId),
-                            where("fornecedorId", "==", user.id) // Usando user.id do nosso Model
+                            where("fornecedorId", "==", userId)
                         );
                         const querySnapshot = await getDocs(q);
 
@@ -102,16 +103,21 @@ export default function DetalhesOportunidadePage() {
     }, [demandaId, user]);
 
     const handleLiberarContato = async () => {
-        // 3. TRAVA DE SEGURANÇA: O TypeScript agora sabe que a demanda existe daqui para baixo!
-        if (!demanda || !user) return;
+        const userId = user?.id || (user as any)?.uid;
+
+        if (!demanda || !userId) {
+            alert("Erro de autenticação ou demanda não encontrada.");
+            return;
+        }
 
         setDesbloqueandoLead(true);
         try {
+            // 1. Salva a proposta/histórico
             await addDoc(collection(db, "propostas"), {
                 demandaId: demanda.id,
-                fornecedorId: user.id,
-                nomeFornecedor: user.razaoSocial || user.nome || "Fornecedor",
-                telefoneFornecedor: user.telefone || "",
+                fornecedorId: userId,
+                nomeFornecedor: user?.razaoSocial || user?.nome || "Fornecedor",
+                telefoneFornecedor: user?.telefone || "Não informado",
                 valor: "A combinar",
                 prazo: "A combinar",
                 mensagem: "Lead desbloqueado via plataforma",
@@ -119,12 +125,19 @@ export default function DetalhesOportunidadePage() {
                 dataCriacao: new Date().toISOString()
             });
 
+            // 2. Atualiza a demanda para Em Negociação
             if (demanda.status === "aberta") {
                 const docRef = doc(db, "demandas", demanda.id);
                 await updateDoc(docRef, {
                     status: "negociacao"
                 });
             }
+
+            // 3. A NOVA MÁGICA: Descontar 1 Lead do Saldo do Fornecedor!
+            const userRef = doc(db, "usuarios", userId);
+            await updateDoc(userRef, {
+                saldoLeads: increment(-1) // O Firebase subtrai 1 de forma segura e atômica!
+            });
 
             setMostrarLead(true);
         } catch (error) {
@@ -234,7 +247,7 @@ export default function DetalhesOportunidadePage() {
 
                                         <button
                                             onClick={handleLiberarContato}
-                                            disabled={desbloqueandoLead}
+                                            disabled={desbloqueandoLead || (user?.saldoLeads !== undefined && user.saldoLeads <= 0)}
                                             className="bg-pedraum-dark hover:bg-black text-white font-bold py-4 px-12 rounded-lg transition-colors shadow-lg text-lg flex items-center justify-center min-w-[250px] disabled:opacity-70 disabled:cursor-not-allowed hover:scale-105"
                                         >
                                             {desbloqueandoLead ? <Loader2 className="w-6 h-6 animate-spin" /> : "Liberar Contato do Comprador"}
