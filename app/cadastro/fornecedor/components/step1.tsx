@@ -3,6 +3,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { FornecedorFormData } from "../page";
 import { formatCpfCnpj, isValidCnpj, isValidCpf } from "@/src/utils/documentos";
 import { ESTADOS_BRASILEIROS } from "@/src/constants/estados";
+import { formatTelefone } from "@/src/utils/formatters";
 
 // Tipamos as propriedades que o Pai (page.tsx) está enviando para cá
 interface Step1Props {
@@ -129,9 +130,10 @@ export function Step1({ formData, updateFormData, onNext }: Readonly<Step1Props>
                     />
                 </div>
 
+                {/* INPUT DE EMAIL */}
                 <div>
                     <label htmlFor="email" className="block text-sm font-bold text-gray-900 mb-2">
-                        Email
+                        Email corporativo*
                     </label>
                     <input
                         id="email"
@@ -143,32 +145,41 @@ export function Step1({ formData, updateFormData, onNext }: Readonly<Step1Props>
                     />
                 </div>
 
-                {/* INPUT DE SENHA */}
+                {/* INPUT DE TELEFONE */}
                 <div>
-                    <label htmlFor="senha" className="block text-sm font-bold text-gray-900 mb-2">Senha</label>
+                    <label htmlFor="telefone" className="block text-sm font-bold text-gray-900 mb-2">
+                        Telefone / WhatsApp*
+                    </label>
+                    <input
+                        id="telefone"
+                        type="text"
+                        required
+                        placeholder="(00) 00000-0000"
+                        value={formData.telefone}
+                        // Olha como ficou lindo e semântico:
+                        onChange={(e) => updateFormData({ telefone: formatTelefone(e.target.value) })}
+                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-pedraum-orange focus:ring-2 focus:ring-orange-100 outline-none transition-all bg-white text-gray-700"
+                    />
+                </div>
+
+                {/* INPUT DE SENHA (Ocupando a linha inteira para ficar elegante) */}
+                <div className="md:col-span-2">
+                    <label htmlFor="senha" className="block text-sm font-bold text-gray-900 mb-2">Crie uma Senha*</label>
                     <div className="relative">
                         <input
                             id="senha"
-                            // 👇 O truque está aqui: alterna entre text e password
                             type={mostrarSenha ? "text" : "password"}
                             required
                             value={formData.senha}
                             onChange={(e) => updateFormData({ senha: e.target.value })}
-                            // 👇 Adicionei um pr-12 (padding-right) para o texto não encostar no ícone
                             className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-pedraum-orange focus:ring-2 focus:ring-orange-100 outline-none transition-all bg-white text-gray-700 pr-12"
                         />
-
-                        {/* Botão absoluto que fica por cima do input */}
                         <button
                             type="button"
-                            onClick={() => setMostrarSenha(!mostrarSenha)} // Inverte o estado ao clicar
+                            onClick={() => setMostrarSenha(!mostrarSenha)}
                             className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-pedraum-orange transition-colors"
                         >
-                            {mostrarSenha ? (
-                                <EyeOff className="w-5 h-5" />
-                            ) : (
-                                <Eye className="w-5 h-5" />
-                            )}
+                            {mostrarSenha ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                         </button>
                     </div>
                 </div>
