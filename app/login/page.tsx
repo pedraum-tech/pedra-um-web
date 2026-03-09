@@ -12,6 +12,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/src/lib/firebase";
 
 import { TipoCadastroModal } from "@/src/components/TipoCadastroModal";
+import { processarDemandaPendente } from "@/src/services/demandaService";
 
 export default function LoginPage() {
     // 3. Estados para guardar o que o usuário digita e controlar a tela
@@ -38,13 +39,20 @@ export default function LoginPage() {
             if (userDoc.exists()) {
                 const userData = userDoc.data();
 
-                // 3. O GUARDA DE TRÂNSITO: Redireciona com base no ROLE
-                if (userData.tipo_usuario === "admin") {
+                if (userData.role === "admin") { // Atualize para 'role' se o seu BD já usa role
                     router.push("/admin/dashboard");
-                } else if (userData.tipo_usuario === "fornecedor") {
+                } else if (userData.role === "fornecedor") {
                     router.push("/fornecedor");
                 } else {
-                    router.push("/comprador"); // Padrão
+                    // É UM COMPRADOR LOGANDO!
+                    // A MÁGICA EM 1 LINHA:
+                    const salvouDemanda = await processarDemandaPendente(userCredential.user.uid, userData.nome || "Cliente");
+
+                    if (salvouDemanda) {
+                        alert("Bem-vindo de volta! Sua nova solicitação já foi enviada.");
+                    }
+
+                    router.push("/comprador");
                 }
             } else {
                 // Se por acaso não achar o documento, manda pro padrão
