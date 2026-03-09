@@ -4,10 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/src/components/Header";
 
-// 1. Importações do Firebase Auth E do Firestore
+// Firebase e Models
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
-import { auth, db } from "@/src/lib/firebase"; // <-- db adicionado aqui
+import { auth, db } from "@/src/lib/firebase";
+import { formatTelefone } from "@/src/utils/formatters"; // <-- 1. Importando a máscara
+import { criarNovaDemandaCentralizada, processarDemandaPendente } from "@/src/services/demandaService"; // <-- Para salvar a demanda pendente!
 
 export default function CadastroCompradorPage() {
     const router = useRouter();
@@ -37,27 +39,31 @@ export default function CadastroCompradorPage() {
         setCarregando(true);
 
         try {
-            // A) Cria a credencial de login
             const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
             const user = userCredential.user;
 
-            // B) Salva o nome básico no perfil
             await updateProfile(user, {
                 displayName: nome
             });
 
-            // C) A MÁGICA DO FIRESTORE (A parte que estava faltando!)
+            // A MÁGICA DO FIRESTORE
             const userDocRef = doc(db, "usuarios", user.uid);
             await setDoc(userDocRef, {
                 nome: nome,
                 email: email,
-                telefone: telefone,
-                tipo_usuario: "comprador",
+                telefone: telefone, // Com a máscara já aplicada!
+                role: "comprador",
                 data_cadastro: new Date().toISOString(),
                 status: "ativo"
             });
 
-            // D) Redireciona para o painel exclusivo do cliente
+            // A MÁGICA DA MEMÓRIA EM 1 LINHA
+            const salvouDemanda = await processarDemandaPendente(user.uid, nome);
+            if (salvouDemanda) {
+                alert("Sua conta foi criada e sua primeira demanda já foi enviada para curadoria!");
+            }
+
+            // E) Redireciona
             router.push("/comprador");
 
         } catch (error: any) {
@@ -117,8 +123,10 @@ export default function CadastroCompradorPage() {
                                     id="telefone"
                                     type="tel"
                                     required
+                                    placeholder="(00) 00000-0000"
                                     value={telefone}
-                                    onChange={(e) => setTelefone(e.target.value)}
+                                    // <-- 4. A MÁSCARA APLICADA AQUI
+                                    onChange={(e) => setTelefone(formatTelefone(e.target.value))}
                                     className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-pedraum-orange focus:ring-2 focus:ring-orange-100 outline-none transition-all bg-white text-gray-700"
                                 />
                             </div>
