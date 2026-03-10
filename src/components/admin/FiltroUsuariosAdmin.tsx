@@ -138,10 +138,12 @@ export function FiltroUsuariosAdmin({ titulo, roleFiltro, CardComponent }: Filtr
                             telefone={usuario.telefone}
                             idUsuario={usuario.id}
                             categoria={usuario.categorias ? usuario.categorias[0] : "Geral"}
-                            // Propriedade específica do Fornecedor Card
-                            leadsVistos={usuario.saldoLeads || 0}
-                            // Propriedade específica do Comprador Card
-                            metric={0} // Você pode fazer uma contagem de demandas abertas no futuro
+
+                            // Fornecedor
+                            leadsVistos={usuario.leadsDesbloqueados || 0}
+
+                            // COMPRADOR: AQUI ESTÁ A MUDANÇA!
+                            metric={usuario.demandasCriadas || 0} // Você pode fazer uma contagem de demandas abertas no futuro
                         />
                     ))}
                 </div>
