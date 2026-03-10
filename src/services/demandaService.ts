@@ -1,12 +1,11 @@
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc, updateDoc, increment } from "firebase/firestore"; // <-- Adicionado updateDoc e increment
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/src/lib/firebase";
 
-// Definimos exatamente o que a função precisa receber para funcionar
 export interface CriarDemandaProps {
     compradorId: string; // 'visitante' ou o UID do usuário logado
     nomeComprador: string;
-    telefoneContato?: string; // Opcional, pois logado não precisa digitar de novo
+    telefoneContato?: string;
     descricao: string;
     urgencia: string;
     termosAceitos?: boolean;
@@ -26,12 +25,12 @@ export async function criarNovaDemandaCentralizada(data: CriarDemandaProps) {
     const urlsFotos: string[] = [];
     let urlPdf: string | null = null;
 
-    // Define a pasta base no Storage dependendo se é visitante ou logado
+    // Define a pasta base no Storage
     const basePath = data.isGuest
         ? `visitantes/demandas/${demandaId}`
         : `${data.compradorId}/demandas/${demandaId}`;
 
-    // 3. Upload das Imagens em paralelo para ser mais rápido
+    // 3. Upload das Imagens em paralelo
     if (data.imagens && data.imagens.length > 0) {
         const uploadPromises = data.imagens.map(async (imagem) => {
             const imageRef = ref(storage, `${basePath}/fotos/${Date.now()}_${imagem.name}`);
@@ -55,56 +54,61 @@ export async function criarNovaDemandaCentralizada(data: CriarDemandaProps) {
         nomeComprador: data.nomeComprador,
         descricao: data.descricao,
         urgencia: data.urgencia,
-        status: "curadoria",               // O novo fluxo!
-        fornecedoresSelecionados: [],      // O escudo de invisibilidade!
+        status: "curadoria",
+        fornecedoresSelecionados: [],
         isGuest: data.isGuest,
-        protocolo: protocoloGerado,        // Logados também terão protocolo agora (Fica mais rastreável!)
+        protocolo: protocoloGerado,
         fotos: urlsFotos,
         documentoPdf: urlPdf,
         dataCriacao: new Date().toISOString(),
     };
 
-    // Adiciona condicionalmente os campos exclusivos de visitante
     if (data.telefoneContato) demandaData.telefoneContato = data.telefoneContato;
     if (data.termosAceitos !== undefined) demandaData.termosAceitos = data.termosAceitos;
 
     await setDoc(novaDemandaRef, demandaData);
 
-    // Retornamos os dados gerados caso a tela precise mostrar (como o protocolo)
+    // ==========================================
+    // A MÁGICA: ATUALIZAR CONTADOR DO COMPRADOR
+    // ==========================================
+    if (!data.isGuest && data.compradorId && data.compradorId !== "visitante") {
+        try {
+            const userRef = doc(db, "usuarios", data.compradorId);
+            await updateDoc(userRef, {
+                demandasCriadas: increment(1) // Adiciona +1 ao contador do usuário no banco!
+            });
+        } catch (error) {
+            console.error("Aviso: Falha ao incrementar contador de demandas do usuário:", error);
+            // Obs: Colocamos num try/catch para que se der erro nisso, a demanda não deixe de ser criada.
+        }
+    }
+    // ==========================================
+
     return { demandaId, protocolo: protocoloGerado };
 }
 
-/**
- * Função utilitária para verificar se o usuário deixou uma demanda pendente
- * na Home page (sessionStorage) antes de fazer login ou cadastro.
- * Se existir, já salva automaticamente no banco usando a função principal e limpa a memória.
- */
 export async function processarDemandaPendente(userId: string, nomeUsuario: string) {
-    // Tenta pegar o texto salvo lá da Home
     const demandaSalva = sessionStorage.getItem("demandaPendente");
 
     if (demandaSalva) {
         try {
-            // Reaproveita a sua função monstruosa que já lida com o banco de dados!
             await criarNovaDemandaCentralizada({
                 compradorId: userId,
                 nomeComprador: nomeUsuario,
                 descricao: demandaSalva,
                 urgencia: "normal",
                 isGuest: false,
-                imagens: [], // Veio da Home rápida, então não tem anexos ainda
+                imagens: [],
                 pdf: null
             });
 
-            // Limpa a memória para não duplicar a demanda se ele atualizar a página
             sessionStorage.removeItem("demandaPendente");
-            return true; // Retorna true para a tela disparar o alert de sucesso
-
+            return true;
         } catch (error) {
             console.error("Erro ao processar demanda pendente:", error);
             return false;
         }
     }
 
-    return false; // Não tinha demanda pendente, vida que segue
+    return false;
 }
