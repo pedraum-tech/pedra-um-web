@@ -215,7 +215,7 @@ export default function DetalhesOportunidadePage() {
 
                                 <div className="mb-8">
                                     <label className="block text-sm font-bold text-gray-900 mb-2">O que o cliente precisa:</label>
-                                    <div className="w-full min-h-[120px] p-5 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">
+                                    <div className="w-full min-h-30 p-5 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">
                                         {demanda.descricao}
                                     </div>
                                 </div>

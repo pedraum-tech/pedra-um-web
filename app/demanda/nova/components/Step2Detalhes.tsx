@@ -39,7 +39,7 @@ export function Step2Detalhes({ formData, updateFormData, onFinish, salvando, im
                         value={formData.descricao}
                         onChange={(e) => updateFormData({ descricao: e.target.value })}
                         placeholder="Dica: Especifique quantidade, especificações técnicas, prazos, localização."
-                        className="w-full min-h-[160px] p-4 rounded-lg border border-gray-300 focus:border-pedraum-orange focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-y text-gray-700"
+                        className="w-full min-h-40 p-4 rounded-lg border border-gray-300 focus:border-pedraum-orange focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-y text-gray-700"
                     ></textarea>
                     <div className="text-xs text-gray-400 mt-1 font-medium text-right">
                         {formData.descricao.length}/500
@@ -92,7 +92,7 @@ export function Step2Detalhes({ formData, updateFormData, onFinish, salvando, im
                     <button
                         type="submit"
                         disabled={salvando}
-                        className="bg-pedraum-orange hover:bg-orange-600 text-gray-900 font-bold py-3 px-8 rounded-lg transition-colors shadow-md disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[200px]"
+                        className="bg-pedraum-orange hover:bg-orange-600 text-gray-900 font-bold py-3 px-8 rounded-lg transition-colors shadow-md disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-50"
                     >
                         {salvando ? "Enviando..." : "Cadastrar Demanda"}
                     </button>
