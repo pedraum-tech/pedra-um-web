@@ -9,7 +9,7 @@ import { auth, db } from "@/src/lib/firebase"; // Ajuste o caminho se necessári
 export interface UserData {
     uid: string;
     email: string | null;
-    tipo_usuario?: string;
+    role?: string;
     razaoSocial?: string;
     nome?: string;
 }
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                         setUser({
                             uid: currentUser.uid,
                             email: currentUser.email,
-                            tipo_usuario: dadosBanco.tipo_usuario,
+                            role: dadosBanco.role,
                             nome: dadosBanco.nome,
                             razaoSocial: dadosBanco.razaoSocial,
                         });

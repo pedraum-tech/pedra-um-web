@@ -86,7 +86,7 @@ export default function CadastroFornecedorPage() {
                 regiao: formData.regiao,
                 categorias: formData.categorias,
                 descricaoItem: formData.descricaoItem,
-                tipo_usuario: "fornecedor", // Crucial para o controle de acesso!
+                role: "fornecedor", // Crucial para o controle de acesso!
                 status_verificacao: "pendente", // Fornecedores geralmente passam por aprovação de CNPJ
                 data_cadastro: new Date().toISOString(),
                 status: "ativo", saldoLeads: 100,

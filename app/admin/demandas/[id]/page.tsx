@@ -61,7 +61,7 @@ export default function EditarDemandaAdminPage() {
                 }
 
                 // 2. Busca TODOS os fornecedores (CORRIGIDO: where("role", "==", "fornecedor"))
-                const qFornecedores = query(collection(db, "usuarios"), where("tipo_usuario", "==", "fornecedor"));
+                const qFornecedores = query(collection(db, "usuarios"), where("role", "==", "fornecedor"));
                 const snapFornecedores = await getDocs(qFornecedores);
                 const listaFornecedores = snapFornecedores.docs.map(d => ({
                     id: d.id,

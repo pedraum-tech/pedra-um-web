@@ -23,12 +23,12 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
             }
 
             // 2. Se a rota exigir um cargo específico, e o usuário não tiver esse cargo...
-            if (allowedRoles && user.tipo_usuario && !allowedRoles.includes(user.tipo_usuario)) {
+            if (allowedRoles && user.role && !allowedRoles.includes(user.role)) {
 
                 // Redireciona a pessoa de volta para a casa correta dela
-                if (user.tipo_usuario === "comprador") {
+                if (user.role === "comprador") {
                     router.push("/comprador");
-                } else if (user.tipo_usuario === "fornecedor") {
+                } else if (user.role === "fornecedor") {
                     router.push("/fornecedor");
                 } else {
                     router.push("/");

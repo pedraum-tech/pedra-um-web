@@ -29,8 +29,8 @@ export function Header({ variant = "guest" }: Readonly<HeaderProps>) {
     // A MÁGICA ACONTECE AQUI:
     // O Header agora decide o que mostrar baseado PRIMEIRO no tipo de usuário logado.
     const getEffectiveMode = () => {
-        if (user?.tipo_usuario === "comprador") return "buyer";
-        if (user?.tipo_usuario === "fornecedor") return "supplier";
+        if (user?.role === "comprador") return "buyer";
+        if (user?.role === "fornecedor") return "supplier";
 
         // Só usa a prop 'variant' original se for um visitante real (deslogado)
         return variant;
