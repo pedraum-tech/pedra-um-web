@@ -136,7 +136,8 @@ export default function DetalhesOportunidadePage() {
             // 3. A NOVA MÁGICA: Descontar 1 Lead do Saldo do Fornecedor!
             const userRef = doc(db, "usuarios", userId);
             await updateDoc(userRef, {
-                saldoLeads: increment(-1) // O Firebase subtrai 1 de forma segura e atômica!
+                saldoLeads: increment(-1), // O Firebase subtrai 1 de forma segura e atômica!
+                leadsDesbloqueados: increment(1)
             });
 
             setMostrarLead(true);
