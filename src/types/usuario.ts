@@ -1,6 +1,8 @@
 export type UserRole = "comprador" | "fornecedor" | "admin";
 
 export interface UsuarioModel {
+    demandasCriadas: number;
+    status: string;
     id: string; // O UID do Firebase Auth
     nome?: string;
     razaoSocial?: string;
